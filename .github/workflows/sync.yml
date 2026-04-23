@@ -15,5 +15,7 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push -f https://Musaasizi:$HF_TOKEN@huggingface.co/spaces/Cohenz-Pro-Hacker/Bot-3 main
-        
+        run: |
+          git remote add space https://Cohenz-Pro-Hacker:$HF_TOKEN@huggingface.co/spaces/Cohenz-Pro-Hacker/Bot-3
+          git push -f space main
+          
