@@ -12,21 +12,29 @@ module.exports = {
   usage: '.ai <question>',
   
   async execute(sock, msg, args, extra) {
+    const { from, reply } = extra;
+
+    if (args.length === 0) {
+      return reply('❌ Usage: .ai <question>\n\nExample: .ai What is the capital of France?');
+    }
+
+    const question = args.join(' ');
+
+    // Show typing indicator
+    await sock.sendPresenceUpdate('composing', from);
+
     try {
-      if (args.length === 0) {
-        return extra.reply('❌ Usage: .ai <question>\n\nExample: .ai What is the capital of France?');
-      }
-      
-      const question = args.join(' ');
-      
       const response = await APIs.chatAI(question);
       
-      // Send only the answer without labels
-      const answer = response.response || response.msg || response.data?.msg || response;
-      await extra.reply(answer);
-      
+      // Extract answer from possible response formats
+      const answer = response.response || response.msg || response.data?.msg || 'No response';
+      await reply(answer);
     } catch (error) {
-      await extra.reply(`❌ AI Error: ${error.message}`);
+      console.error('AI Error:', error.message);
+      await reply(`❌ AI Error: ${error.message}`);
+    } finally {
+      // Stop typing
+      await sock.sendPresenceUpdate('paused', from);
     }
   }
 };
