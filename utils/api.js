@@ -3,6 +3,7 @@
  */
 
 const axios = require('axios');
+const config = require('../config');  // Needed for Gemini API key
 
 const api = axios.create({
   timeout: 30000,
@@ -35,6 +36,22 @@ const APIs = {
       return response.data;
     } catch (error) {
       throw new Error('Failed to get AI response');
+    }
+  },
+
+  // 🆕 Gemini (Google Generative AI)
+  gemini: async (prompt) => {
+    const apiKey = config.apiKeys.gemini;
+    if (!apiKey) throw new Error('Gemini API key not set');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    const response = await axios.post(url, {
+      contents: [{ parts: [{ text: prompt }] }],
+    });
+    const data = response.data;
+    if (data.candidates && data.candidates.length > 0) {
+      return data.candidates[0].content.parts[0].text;
+    } else {
+      throw new Error('No response from Gemini');
     }
   },
   
