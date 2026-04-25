@@ -1,13 +1,13 @@
 /**
- * WhatsApp Bot – Hugging Face (Pairing Code Web UI)
- * Waits for stable pairing and doesn't restart while a code is active.
+ * WhatsApp Bot – Hugging Face (Session ID Primary / Pairing Code Fallback)
  */
 
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 // ══════════════════════════════════════════════════════
-// Dummy mumaker module
+// Create dummy mumaker module
 // ══════════════════════════════════════════════════════
 const mumakerDir = path.join(__dirname, 'node_modules', 'mumaker');
 const mumakerFile = path.join(mumakerDir, 'index.js');
@@ -23,7 +23,7 @@ fs.writeFileSync(mumakerFile, `module.exports = {
 console.log('✅ Created dummy mumaker module');
 
 // ══════════════════════════════════════════════════════
-// Dummy ffmpeg-static module (uses system ffmpeg)
+// Dummy ffmpeg-static module
 // ══════════════════════════════════════════════════════
 const ffmpegDir = path.join(__dirname, 'node_modules', 'ffmpeg-static');
 const ffmpegFile = path.join(ffmpegDir, 'index.js');
@@ -33,7 +33,7 @@ if (!fs.existsSync(ffmpegDir)) {
 fs.writeFileSync(ffmpegFile, `module.exports = '/usr/bin/ffmpeg';`);
 console.log('✅ Created dummy ffmpeg-static module');
 
-// ── Load real dependencies ──────────────────────────
+// ── Real dependencies ─────────────────────────────
 const pino = require('pino');
 const express = require('express');
 const {
@@ -48,75 +48,82 @@ const handler = require('./handler');
 const app = express();
 const PORT = process.env.PORT || 7860;
 
-let currentCode = '';
-let codeGenerated = false;
-let botIsConnected = false;
-let pairingInProgress = false;   // true while a valid code is being shown
-let pairingTimeout = null;       // timer to clear the code
+let pairingCode = '';
+let codeShown = false;
+let botConnected = false;
 
-// ── Pairing Code Web Page ─────────────────────────
-const getPairingPage = () => {
-  if (botIsConnected) {
-    return `<html><head><title>Bot Connected</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="text-align:center;font-family:sans-serif;padding-top:50px;"><h2>✅ Bot is already connected!</h2></body></html>`;
-  }
-  if (!codeGenerated) {
-    return `<html><head><title>Generating Code...</title><meta name="viewport" content="width=device-width, initial-scale=1"><script>setTimeout(()=>location.reload(),3000);</script></head><body style="text-align:center;font-family:sans-serif;padding-top:50px;"><h2>⏳ Generating pairing code...</h2><p>Page auto‑refreshes.</p></body></html>`;
-  }
-  const formatted = currentCode?.match(/.{1,4}/g)?.join('-') || currentCode;
-  const raw = currentCode || '';
-  return `
-  <html>
-    <head><title>Link Your Device</title><meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      body { font-family: sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
-      .container { max-width: 400px; margin: 0 auto; background: white; border-radius: 20px; padding: 30px; box-shadow:0 0 15px rgba(0,0,0,0.1); }
-      h2 { color: #075e54; margin-bottom: 5px; }
-      .code { font-size: 2.3rem; font-weight: bold; letter-spacing: 4px; background: #e7ffdb; padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #25D366; word-break: break-all; }
-      button { background: #25D366; color: white; border: none; padding: 14px 30px; font-size: 1.1rem; border-radius: 30px; cursor: pointer; margin: 10px 0; width: 80%; }
-      button:active { background: #128c7e; }
-      .instructions { text-align: left; margin-top: 20px; color: #333; font-size: 0.95rem; }
-      .timer { color: #e63946; font-weight: bold; }
-    </style></head>
-    <body>
-      <div class="container">
+// ══════════════════════════════════════════════════════
+// Web Page (pairing code UI as fallback)
+// ══════════════════════════════════════════════════════
+app.get('/', (req, res) => {
+  if (botConnected) {
+    res.send(`<html><head><title>Connected</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="text-align:center;font-family:sans-serif;padding-top:50px;"><h2>✅ Bot is already connected!</h2></body></html>`);
+  } else if (codeShown && pairingCode) {
+    const formatted = pairingCode.match(/.{1,4}/g)?.join('-') || pairingCode;
+    res.send(`
+      <html>
+      <head><title>Pairing Code</title><meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        .code { font-size: 2.3rem; font-weight: bold; letter-spacing: 4px; background: #e7ffdb; padding: 20px; border-radius: 12px; margin: 20px; border: 2px solid #25D366; display: inline-block; }
+        button { background: #25D366; color: white; border: none; padding: 14px 30px; font-size: 1.1rem; border-radius: 30px; cursor: pointer; }
+      </style></head>
+      <body>
         <h2>🔐 Pairing Code</h2>
-        <div class="code" id="code">${formatted}</div>
-        <button onclick="copyCode()">📋 Copy Code</button>
-        <p id="msg" style="color:green;display:none;">✔ Copied!</p>
-        <div class="instructions">
-          <p><b>1.</b> Open <b>WhatsApp</b> on this phone<br>
-          <b>2.</b> Go to <b>Settings → Linked Devices → Link with phone number</b><br>
-          <b>3.</b> Enter the code above<br>
-          <b>4.</b> Tap <b>Confirm</b><br>
-          💡 You may already see a prompt to enter the code – just tap it!</p>
-          <p class="timer">⚠️ Code valid for 60 seconds</p>
-        </div>
-      </div>
-      <script>
-        function copyCode() { navigator.clipboard.writeText('${raw}'); document.getElementById('msg').style.display = 'block'; }
-        setTimeout(() => location.reload(), 55000);
-      </script>
-    </body>
-  </html>`;
-};
+        <div class="code">${formatted}</div>
+        <button onclick="navigator.clipboard.writeText('${pairingCode}');alert('Copied!')">📋 Copy Code</button>
+        <p><b>1.</b> Open WhatsApp → Linked Devices → Link with phone number<br>
+        <b>2.</b> Enter the code above<br>
+        <b>3.</b> Tap Confirm</p>
+        <p style="color:red;">⚠️ Code valid for 60 seconds</p>
+        <script>setTimeout(() => location.reload(), 55000);</script>
+      </body></html>`);
+  } else {
+    res.send(`<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><script>setTimeout(()=>location.reload(),3000);</script></head><body style="text-align:center;padding-top:50px;"><h2>⏳ Waiting for connection...</h2></body></html>`);
+  }
+});
 
-app.get('/', (req, res) => res.send(getPairingPage()));
-app.get('/health', (req, res) => res.send(botIsConnected ? 'Connected' : 'Waiting'));
+// ── Session folder path ───────────────────────────
+const sessionFolder = `./${config.sessionName || 'session'}`;
+const sessionFile = path.join(sessionFolder, 'creds.json');
 
-// ── Bot Setup ─────────────────────────────────────
-const sessionFolder = './session';
-// Clean old session for a fresh start
-if (fs.existsSync(sessionFolder)) {
-  fs.rmSync(sessionFolder, { recursive: true, force: true });
+// ── KnightBot Session Handler ─────────────────────
+function handleKnightBotSession() {
+  const sessionID = config.sessionID;
+  if (!sessionID || !sessionID.startsWith('KnightBot!')) return false;
+
+  try {
+    const [header, b64data] = sessionID.split('!');
+    if (header !== 'KnightBot' || !b64data) throw new Error('Invalid session format');
+
+    const cleanB64 = b64data.replace(/\.{3}$/, '');
+    const compressedData = Buffer.from(cleanB64, 'base64');
+    const decompressedData = zlib.gunzipSync(compressedData);
+
+    if (!fs.existsSync(sessionFolder)) {
+      fs.mkdirSync(sessionFolder, { recursive: true });
+    }
+    fs.writeFileSync(sessionFile, decompressedData, 'utf8');
+    console.log('📡 Session loaded from KnightBot ID');
+    return true;   // session file created
+  } catch (error) {
+    console.error('❌ Failed to load KnightBot session:', error.message);
+    return false;
+  }
 }
-fs.mkdirSync(sessionFolder, { recursive: true });
 
+// ── Start Bot ─────────────────────────────────────
 async function startBot() {
-  // Reset state for a new connection attempt
-  codeGenerated = false;
-  currentCode = '';
-  pairingInProgress = false;
-  if (pairingTimeout) clearTimeout(pairingTimeout);
+  // If a KnightBot session is provided, use it; otherwise, start fresh for pairing code
+  const hasValidSession = handleKnightBotSession();
+  if (hasValidSession) {
+    console.log('🔄 Using KnightBot session – no pairing needed.');
+  } else {
+    // No session ID – clean slate for pairing code (if we ever need it)
+    if (fs.existsSync(sessionFolder)) {
+      fs.rmSync(sessionFolder, { recursive: true, force: true });
+    }
+  }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
@@ -133,83 +140,42 @@ async function startBot() {
     getMessage: async () => undefined
   });
 
-  const rawOwner = Array.isArray(config.ownerNumber) ? config.ownerNumber[0] : config.ownerNumber;
-  const ownerNumber = rawOwner.replace(/[^0-9]/g, '');
+  const ownerNumber = (Array.isArray(config.ownerNumber) ? config.ownerNumber[0] : config.ownerNumber)
+    .replace(/[^0-9]/g, '');
   const ownerJid = `${ownerNumber}@s.whatsapp.net`;
 
+  // Connection handling
   let pairingRequested = false;
-
-  // Function to request the pairing code
-  const requestCode = async () => {
-    if (pairingRequested) return;
-    pairingRequested = true;
-    try {
-      const code = await sock.requestPairingCode(ownerNumber);
-      currentCode = code;
-      codeGenerated = true;
-      pairingInProgress = true;
-      console.log(`\n🔢 Pairing code: ${code}`);
-      console.log('📱 Open WhatsApp → Linked Devices → Link with phone number');
-
-      // Clear the code after 60 seconds
-      pairingTimeout = setTimeout(() => {
-        codeGenerated = false;
-        currentCode = '';
-        pairingInProgress = false;
-        pairingRequested = false;   // allow a new attempt later
-        console.log('⌛ Pairing code expired. Restart the bot to get a new one.');
-      }, 60000);
-    } catch (err) {
-      console.error('❌ Failed to get pairing code:', err.message);
-      pairingRequested = false;
-      pairingInProgress = false;
-      // Retry after 5 seconds
-      setTimeout(() => startBot(), 5000);
-    }
-  };
-
-  // Connection update handler
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
 
-    // Request code once we hit 'connecting'
-    if (connection === 'connecting' && !pairingRequested) {
-      console.log('⏳ Connecting to WhatsApp...');
-      setTimeout(() => requestCode(), 2000);
+    // Only attempt pairing code if NO valid session was provided
+    if (!hasValidSession && connection === 'connecting' && !pairingRequested) {
+      pairingRequested = true;
+      try {
+        const code = await sock.requestPairingCode(ownerNumber);
+        pairingCode = code;
+        codeShown = true;
+        console.log(`🔢 Pairing code: ${code}`);
+        setTimeout(() => { codeShown = false; pairingCode = ''; }, 60000);
+      } catch (err) {
+        console.error('❌ Pairing code request failed:', err.message);
+        pairingRequested = false;
+      }
     }
 
     if (connection === 'open') {
-      botIsConnected = true;
-      if (pairingTimeout) clearTimeout(pairingTimeout);
-      currentCode = '';
-      codeGenerated = false;
-      pairingInProgress = false;
-      pairingRequested = false;
-      console.log('✅ Bot connected successfully!');
+      botConnected = true;
+      console.log('✅ Bot connected!');
       await sock.sendMessage(ownerJid, { text: '✅ Bot is Online!' });
     }
 
     if (connection === 'close') {
+      botConnected = false;
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const reason = lastDisconnect?.error?.message || '';
-
-      // If a pairing code is active, do NOT restart immediately.
-      // The user might still be entering the code on their phone.
-      if (pairingInProgress && statusCode !== DisconnectReason.loggedOut) {
-        console.log('🔁 Pairing code active – waiting for you to link. Code valid for a few more seconds.');
-        // We simply don't call startBot() here, leaving the socket inactive.
-        // The timeout set above will eventually clean up and allow a restart.
-        return;
-      }
-
-      // Otherwise, reconnect as usual
-      botIsConnected = false;
-      pairingRequested = false;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       console.log('Connection closed. Reconnecting:', shouldReconnect);
-      if (shouldReconnect) {
-        setTimeout(() => startBot(), 3000);
-      }
+      if (shouldReconnect) setTimeout(startBot, 3000);
     }
   });
 
@@ -223,7 +189,7 @@ async function startBot() {
   });
 }
 
-// Start server & bot
+// ── Start Server ──────────────────────────────────
 app.listen(PORT, () => {
   console.log(`🚀 Web UI running on port ${PORT}`);
   startBot().catch(err => {
