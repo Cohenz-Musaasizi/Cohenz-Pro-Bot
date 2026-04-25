@@ -1,13 +1,13 @@
 /**
  * WhatsApp Bot – Hugging Face (Pairing Code Web UI)
- * Robust pairing code request with proper connection state handling
+ * Waits for stable pairing and doesn't restart while a code is active.
  */
 
 const fs = require('fs');
 const path = require('path');
 
 // ══════════════════════════════════════════════════════
-// Create dummy mumaker module BEFORE any command loads
+// Dummy mumaker module
 // ══════════════════════════════════════════════════════
 const mumakerDir = path.join(__dirname, 'node_modules', 'mumaker');
 const mumakerFile = path.join(mumakerDir, 'index.js');
@@ -23,7 +23,7 @@ fs.writeFileSync(mumakerFile, `module.exports = {
 console.log('✅ Created dummy mumaker module');
 
 // ══════════════════════════════════════════════════════
-// Create dummy ffmpeg-static module (uses system ffmpeg)
+// Dummy ffmpeg-static module (uses system ffmpeg)
 // ══════════════════════════════════════════════════════
 const ffmpegDir = path.join(__dirname, 'node_modules', 'ffmpeg-static');
 const ffmpegFile = path.join(ffmpegDir, 'index.js');
@@ -51,6 +51,8 @@ const PORT = process.env.PORT || 3000;
 let currentCode = '';
 let codeGenerated = false;
 let botIsConnected = false;
+let pairingInProgress = false;   // true while a valid code is being shown
+let pairingTimeout = null;       // timer to clear the code
 
 // ── Pairing Code Web Page ─────────────────────────
 const getPairingPage = () => {
@@ -103,15 +105,18 @@ app.get('/health', (req, res) => res.send(botIsConnected ? 'Connected' : 'Waitin
 
 // ── Bot Setup ─────────────────────────────────────
 const sessionFolder = './session';
-// Always start fresh to avoid stale sessions
+// Clean old session for a fresh start
 if (fs.existsSync(sessionFolder)) {
   fs.rmSync(sessionFolder, { recursive: true, force: true });
 }
 fs.mkdirSync(sessionFolder, { recursive: true });
 
 async function startBot() {
+  // Reset state for a new connection attempt
   codeGenerated = false;
   currentCode = '';
+  pairingInProgress = false;
+  if (pairingTimeout) clearTimeout(pairingTimeout);
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
@@ -119,7 +124,7 @@ async function startBot() {
   const sock = makeWASocket({
     version,
     logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,        // we handle pairing codes manually
+    printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
     syncFullHistory: false,
@@ -128,15 +133,13 @@ async function startBot() {
     getMessage: async () => undefined
   });
 
-  // Extract owner number correctly from array
   const rawOwner = Array.isArray(config.ownerNumber) ? config.ownerNumber[0] : config.ownerNumber;
   const ownerNumber = rawOwner.replace(/[^0-9]/g, '');
   const ownerJid = `${ownerNumber}@s.whatsapp.net`;
 
-  // ── Pairing Code Request ───────────────────────
-  // We must wait until the socket is "connecting" before requesting the code
   let pairingRequested = false;
 
+  // Function to request the pairing code
   const requestCode = async () => {
     if (pairingRequested) return;
     pairingRequested = true;
@@ -144,25 +147,24 @@ async function startBot() {
       const code = await sock.requestPairingCode(ownerNumber);
       currentCode = code;
       codeGenerated = true;
+      pairingInProgress = true;
       console.log(`\n🔢 Pairing code: ${code}`);
-      // Expire the code after 60s (auto-retry logic will refresh)
-      setTimeout(() => {
+      console.log('📱 Open WhatsApp → Linked Devices → Link with phone number');
+
+      // Clear the code after 60 seconds
+      pairingTimeout = setTimeout(() => {
         codeGenerated = false;
         currentCode = '';
+        pairingInProgress = false;
+        pairingRequested = false;   // allow a new attempt later
+        console.log('⌛ Pairing code expired. Restart the bot to get a new one.');
       }, 60000);
     } catch (err) {
       console.error('❌ Failed to get pairing code:', err.message);
-      // Reset flag to allow retrying on next connection attempt
       pairingRequested = false;
-      codeGenerated = false;
-      currentCode = '';
-      // Wait a few seconds and try again if still connecting
-      setTimeout(() => {
-        if (sock.user && !botIsConnected) {
-          // Force a reconnect to trigger a new connection cycle
-          sock.end();
-        }
-      }, 5000);
+      pairingInProgress = false;
+      // Retry after 5 seconds
+      setTimeout(() => startBot(), 5000);
     }
   };
 
@@ -170,27 +172,39 @@ async function startBot() {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
 
-    // Only request code when we hit 'connecting' state and haven't requested yet
+    // Request code once we hit 'connecting'
     if (connection === 'connecting' && !pairingRequested) {
       console.log('⏳ Connecting to WhatsApp...');
-      // Delay slightly to ensure the socket is stable
       setTimeout(() => requestCode(), 2000);
     }
 
     if (connection === 'open') {
       botIsConnected = true;
+      if (pairingTimeout) clearTimeout(pairingTimeout);
       currentCode = '';
       codeGenerated = false;
+      pairingInProgress = false;
+      pairingRequested = false;
       console.log('✅ Bot connected successfully!');
       await sock.sendMessage(ownerJid, { text: '✅ Bot is Online!' });
     }
 
     if (connection === 'close') {
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const reason = lastDisconnect?.error?.message || '';
+
+      // If a pairing code is active, do NOT restart immediately.
+      // The user might still be entering the code on their phone.
+      if (pairingInProgress && statusCode !== DisconnectReason.loggedOut) {
+        console.log('🔁 Pairing code active – waiting for you to link. Code valid for a few more seconds.');
+        // We simply don't call startBot() here, leaving the socket inactive.
+        // The timeout set above will eventually clean up and allow a restart.
+        return;
+      }
+
+      // Otherwise, reconnect as usual
       botIsConnected = false;
       pairingRequested = false;
-      codeGenerated = false;
-      currentCode = '';
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       console.log('Connection closed. Reconnecting:', shouldReconnect);
       if (shouldReconnect) {
@@ -201,7 +215,6 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  // Message handling
   sock.ev.on('messages.upsert', ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
