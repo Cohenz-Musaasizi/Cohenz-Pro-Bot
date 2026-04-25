@@ -46,7 +46,7 @@ const config = require('./config');
 const handler = require('./handler');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 7860;
 
 let currentCode = '';
 let codeGenerated = false;
