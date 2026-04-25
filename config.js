@@ -4,40 +4,40 @@
 
 module.exports = {
     // Bot Owner Configuration
-    ownerNumber: ['256709913725'],               // Your number(s) without + or spaces
-    ownerName: ['Marvin Musaasizi', 'Professor'], // Owner names corresponding to numbers
+    ownerNumber: ['256709913725'],
+    ownerName: ['Marvin Musaasizi', 'Professor'],
 
     // Bot Configuration
     botName: 'Cohenz Pro Bot',
     prefix: '.',
     sessionName: 'session',
     sessionID: process.env.SESSION_ID || '',
-    newsletterJid: '120363161513685998@newsletter', // Newsletter JID for menu forwarding
-    updateZipUrl: 'https://github.com/mruniquehacker/KnightBot-Mini/archive/refs/heads/main.zip', // Update command URL
+    newsletterJid: '120363161513685998@newsletter',
+    updateZipUrl: 'https://github.com/mruniquehacker/KnightBot-Mini/archive/refs/heads/main.zip',
 
     // Sticker Configuration
     packname: 'iMac Recordz',
 
     // Bot Behavior
-    selfMode: false,              // Private mode – only owner can use commands
+    selfMode: false,
     autoRead: false,
     autoTyping: false,
-    autoBio: true,                // Auto-set bot status
+    autoBio: true,
     autoSticker: false,
     autoReact: false,
-    autoReactMode: 'bot',         // 'bot' or 'all' via command
+    autoReactMode: 'bot',
     autoDownload: false,
 
     // Group Settings Defaults
     defaultGroupSettings: {
         antilink: false,
-        antilinkAction: 'delete', // 'delete', 'kick', 'warn'
+        antilinkAction: 'delete',
         antitag: false,
         antitagAction: 'delete',
-        antiall: false,           // Owner only – blocks all non‑admin messages
+        antiall: false,
         antiviewonce: false,
         antibot: false,
-        anticall: false,          // Anti‑call feature
+        anticall: false,
         antigroupmention: false,
         antigroupmentionAction: 'delete',
         welcome: false,
@@ -49,7 +49,7 @@ module.exports = {
         nsfw: false,
         detect: false,
         chatbot: false,
-        autosticker: false        // Auto‑convert images/videos to stickers
+        autosticker: false
     },
 
     // API Keys (loaded from Hugging Face Secrets)
