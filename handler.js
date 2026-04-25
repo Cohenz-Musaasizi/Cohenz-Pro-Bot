@@ -756,8 +756,41 @@ const handleMessage = async (sock, msg) => {
     }
     
     
-    // Check if message starts with prefix
-    if (!body.startsWith(config.prefix)) return;
+    // ── CHATBOT (AI replies with Gemini) ──────────────────
+if (!body.startsWith(config.prefix)) {
+    let chatbotEnabled = false;
+
+    if (isGroup) {
+        const gs = database.getGroupSettings(from);
+        chatbotEnabled = gs.chatbot === true;
+    } else {
+        const fs = require('fs');
+        const path = require('path');
+        const privateSettingsPath = path.join(__dirname, 'private_chatbot.json');
+        try {
+            const privateSettings = JSON.parse(fs.readFileSync(privateSettingsPath, 'utf8'));
+            chatbotEnabled = privateSettings[from] === true;
+        } catch {}
+    }
+
+    if (chatbotEnabled && body.length > 0) {
+        try {
+            await sock.sendPresenceUpdate('composing', from);
+            const APIs = require('./utils/api');
+            const response = await APIs.gemini(body);
+            await sock.sendMessage(from, { text: response }, { quoted: msg });
+        } catch (err) {
+            console.error('Chatbot error:', err);
+            await sock.sendMessage(from, { text: '❌ Chatbot error.' }, { quoted: msg });
+        } finally {
+            await sock.sendPresenceUpdate('paused', from);
+        }
+        return; // stop here, don't check for commands
+    }
+    // If chatbot is off, do nothing (the old return prevented commands, we remove that)
+    // We'll let it fall through, but commands start with prefix, so they won't match any non‑command logic.
+    // No return needed.
+}
     
     // Parse command
     const args = body.slice(config.prefix.length).trim().split(/\s+/);
