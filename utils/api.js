@@ -44,8 +44,8 @@ const APIs = {
     const apiKey = config.apiKeys.gemini;
     if (!apiKey) throw new Error('Gemini API key not set');
 
-    const model = 'gemini-2.0-flash';   // correct free model
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const model = 'gemini-2.5-flash';   // correct free model
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await axios.post(url, {
         contents: [{ parts: [{ text: prompt }] }],
