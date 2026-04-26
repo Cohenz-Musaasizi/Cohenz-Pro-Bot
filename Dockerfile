@@ -1,35 +1,32 @@
-FROM node:20-slim
+FROM node:20-alpine
 
-# Install system packages
-RUN apt-get update && apt-get install -y \
+# Install system packages (Alpine uses apk, not apt)
+RUN apk add --no-cache \
     git \
     ffmpeg \
     curl \
     python3 make g++ \
-    libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
-    && rm -rf /var/lib/apt/lists/*
+    cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
 
 WORKDIR /app
 
-# Copy package files first (better layer caching)
+# Copy package.json first for better layer caching
 COPY package.json ./
 
 # Remove problematic packages that cause build failures
 RUN sed -i '/"ffmpeg-static"/d' package.json
 RUN sed -i '/"mumaker"/d' package.json
 
-# Install Node dependencies
-RUN npm install --no-package-lock
+# Install dependencies (clean cache to reduce image size)
+RUN npm install --no-package-lock && npm cache clean --force
 
-# Copy the rest of your project
+# Copy the rest of the project
 COPY . .
 
-# Use the port expected by Hugging Face / Render
 ENV PORT=7860
 EXPOSE 7860
 
-# Health check (pings the /health endpoint every 60 seconds)
+# Health check – keeps the container alive
 HEALTHCHECK --interval=60s --timeout=3s CMD curl -f http://localhost:7860/health || exit 1
 
-# Start the bot
 CMD ["npm", "start"]
