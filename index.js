@@ -7,36 +7,31 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-// ═══════════════════════════════════════
-// 1. Create dummy mumaker module
-// ═══════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// 1. Bridge for the real mumaker (text‑effect commands)
+// ══════════════════════════════════════════════════════
 const mumakerDir = path.join(__dirname, 'node_modules', 'mumaker');
 if (!fs.existsSync(mumakerDir)) {
   fs.mkdirSync(mumakerDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(mumakerDir, 'index.js'),
-    `module.exports = {
-  exec: async (text) => {
-    const placeholderUrl = 'https://via.placeholder.com/600x200.png?text=' + encodeURIComponent(text);
-    return { image: placeholderUrl };
-  }
-};`
-  );
-  console.log('✅ Dummy mumaker module created');
 }
+fs.writeFileSync(
+  path.join(mumakerDir, 'index.js'),
+  'module.exports = require("../../utils/mumaker.js");'
+);
+console.log('✅ Real mumaker bridge created');
 
-// ═══════════════════════════════════════
-// 2. Create dummy ffmpeg‑static module
-// ═══════════════════════════════════════
-const ffmpegDir = path.join(__dirname, 'node_modules', 'ffmpeg-static');
-if (!fs.existsSync(ffmpegDir)) {
-  fs.mkdirSync(ffmpegDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(ffmpegDir, 'index.js'),
-    `module.exports = '/usr/bin/ffmpeg';`
-  );
-  console.log('✅ Dummy ffmpeg‑static module created');
+// ══════════════════════════════════════════════════════
+// 2. Dummy ffmpeg‑static (no change needed, just fix)
+// ══════════════════════════════════════════════════════
+const ffmpegStaticDir = path.join(__dirname, 'node_modules', 'ffmpeg-static');
+if (!fs.existsSync(ffmpegStaticDir)) {
+  fs.mkdirSync(ffmpegStaticDir, { recursive: true });
 }
+fs.writeFileSync(
+  path.join(ffmpegStaticDir, 'index.js'),
+  `module.exports = '/usr/bin/ffmpeg';`
+);
+console.log('✅ Dummy ffmpeg‑static ready');
 
 // ── Load real dependencies ─────────────────
 const pino = require('pino');
