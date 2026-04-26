@@ -4,7 +4,7 @@
 
 module.exports = {
     // Bot Owner Configuration
-    ownerNumber: ['256756803655'],
+    ownerNumber: ['256709913725'],
     ownerName: ['Marvin Musaasizi', 'Professor'],
 
     // Bot Configuration
