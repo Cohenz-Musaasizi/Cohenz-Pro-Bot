@@ -1,5 +1,5 @@
 const mumaker = require('mumaker');
-const config = require('../config');
+const config = require('../../config');
 
 module.exports = {
     name: 'purple',
