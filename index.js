@@ -1,7 +1,7 @@
 /**
  * WhatsApp Bot – Render / Hugging Face (Session‑ID only, stable)
  * No pairing code, no QR – uses KnightBot session from SESSION_ID secret.
- * Logging enabled for connection diagnostics.
+ * Quiet logging – use for normal operation.
  */
 
 const fs = require('fs');
@@ -46,24 +46,17 @@ const {
 const config = require('./config');
 const handler = require('./handler');
 
-// ── Express server (keeps Render alive) ──
+// ── Express server (keeps Render alive for health checks) ──
 const app = express();
 const PORT = process.env.PORT || 7860;
 
-// Public landing page
 app.get('/', (req, res) => res.send('<h2>Bot is running…</h2>'));
-
-// Health endpoint for self‑ping and Render health check
 app.get('/health', (req, res) => res.send('OK'));
 
 // ── Session management ─────────────────────
 const sessionFolder = `./${config.sessionName || 'session'}`;
 const sessionFile = path.join(sessionFolder, 'creds.json');
 
-/**
- * Decodes a KnightBot session ID and writes the credentials file.
- * Returns true if successful, false otherwise.
- */
 function loadSessionFromEnv() {
   const sessionID = config.sessionID;
   if (!sessionID || !sessionID.startsWith('KnightBot!')) {
@@ -74,7 +67,6 @@ function loadSessionFromEnv() {
   try {
     const [header, b64data] = sessionID.split('!');
     if (header !== 'KnightBot' || !b64data) throw new Error('Invalid format');
-
     const cleanB64 = b64data.replace(/\.{3}$/, '');
     const compressed = Buffer.from(cleanB64, 'base64');
     const decompressed = zlib.gunzipSync(compressed);
@@ -87,7 +79,6 @@ function loadSessionFromEnv() {
     return true;
   } catch (err) {
     console.error('❌ Failed to decode session:', err.message);
-    console.error('   Make sure your SESSION_ID is exactly the string from the KnightBot site.');
     return false;
   }
 }
@@ -96,9 +87,8 @@ function loadSessionFromEnv() {
 // Bot startup
 // ═══════════════════════════════════════════
 async function startBot() {
-  const sessionReady = loadSessionFromEnv();
-  if (!sessionReady) {
-    console.error('⚠️  Cannot start – no valid session. Add SESSION_ID secret and restart.');
+  if (!loadSessionFromEnv()) {
+    console.error('⚠️  No valid session. Add SESSION_ID secret and restart.');
     return;
   }
 
@@ -107,8 +97,7 @@ async function startBot() {
 
   const sock = makeWASocket({
     version,
-    // 🔧 Temporarily set to 'info' so you can see connection status codes
-    logger: pino({ level: 'info' }),
+    logger: pino({ level: 'silent' }),   // keep logs quiet
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
@@ -116,16 +105,14 @@ async function startBot() {
     downloadHistory: false,
     markOnlineOnConnect: false,
     getMessage: async () => undefined,
-    connectTimeoutMs: 30_000,            // 30 seconds
-    defaultQueryTimeoutMs: 15_000,       // 15 seconds
+    connectTimeoutMs: 30_000,
+    defaultQueryTimeoutMs: 15_000,
   });
 
-  // Extract owner number for notifications
   const rawOwner = Array.isArray(config.ownerNumber) ? config.ownerNumber[0] : config.ownerNumber;
   const ownerNumber = rawOwner.replace(/[^0-9]/g, '');
   const ownerJid = `${ownerNumber}@s.whatsapp.net`;
 
-  // ── Connection handling ─────────────────
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
 
@@ -145,25 +132,21 @@ async function startBot() {
       if (shouldReconnect) {
         setTimeout(() => startBot(), 5000);
       } else {
-        console.error('⛔ Session is logged out. Generate a new SESSION_ID from KnightBot site.');
+        console.error('⛔ Session logged out. Generate a new SESSION_ID from KnightBot site.');
       }
     }
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  // ── Message handler ─────────────────────
   sock.ev.on('messages.upsert', ({ messages, type }) => {
-    if (type !== 'notify') return; // only new messages
+    if (type !== 'notify') return;
     for (const msg of messages) {
-      if (msg.message) {
-        handler.handleMessage(sock, msg).catch(() => {});
-      }
+      if (msg.message) handler.handleMessage(sock, msg).catch(() => {});
     }
   });
 }
 
-// ── Start server & bot ─────────────────
 app.listen(PORT, () => {
   console.log(`🚀 Web UI listening on port ${PORT}`);
   startBot().catch((err) => {
@@ -172,11 +155,9 @@ app.listen(PORT, () => {
   });
 });
 
-// ═══════════════════════════════════════════════
-// 🔁 STRONG SELF‑PING – keeps the instance alive
-// ═══════════════════════════════════════════════
+// Self‑ping every 4 minutes to prevent Render from sleeping
 setInterval(() => {
   try {
     require('http').get(`http://localhost:${PORT}/health`);
   } catch (e) {}
-}, 4 * 60 * 1000);   // every 4 minutes
+}, 4 * 60 * 1000);
