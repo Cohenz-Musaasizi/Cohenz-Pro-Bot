@@ -43,17 +43,26 @@ const APIs = {
   gemini: async (prompt) => {
     const apiKey = config.apiKeys.gemini;
     if (!apiKey) throw new Error('Gemini API key not set');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+
+    // ⚡ Use the latest fast & free model (as of April 2026)
+    const model = 'gemini-2.0-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
     const response = await axios.post(url, {
-      contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+        },
     });
+
     const data = response.data;
     if (data.candidates && data.candidates.length > 0) {
-      return data.candidates[0].content.parts[0].text;
+        return data.candidates[0].content.parts[0].text;
     } else {
-      throw new Error('No response from Gemini');
+        throw new Error('No response from Gemini');
     }
-  },
+},
   
   // YouTube Download
   ytDownload: async (url, type = 'audio') => {
