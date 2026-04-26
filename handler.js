@@ -37,6 +37,7 @@ const getMessageContent = (msg) => {
 // Cached group metadata getter with rate limit handling (for non-admin checks)
 const getCachedGroupMetadata = async (sock, groupId) => {
   try {
+    if (msg.key.fromMe) return;   // ← IGNORE BOT’S OWN MESSAGES
     // Validate group JID before attempting to fetch
     if (!groupId || !groupId.endsWith('@g.us')) {
       return null;
