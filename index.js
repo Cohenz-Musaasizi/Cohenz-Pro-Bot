@@ -1,6 +1,7 @@
 /**
  * WhatsApp Bot – Render / Hugging Face (Session‑ID only, stable)
  * No pairing code, no QR – uses KnightBot session from SESSION_ID secret.
+ * Logging enabled for connection diagnostics.
  */
 
 const fs = require('fs');
@@ -45,14 +46,14 @@ const {
 const config = require('./config');
 const handler = require('./handler');
 
-// ── Express server (keeps Render/HF alive) ──
+// ── Express server (keeps Render alive) ──
 const app = express();
 const PORT = process.env.PORT || 7860;
 
 // Public landing page
 app.get('/', (req, res) => res.send('<h2>Bot is running…</h2>'));
 
-// Health endpoint for self‑ping and Docker/UptimeRobot checks
+// Health endpoint for self‑ping and Render health check
 app.get('/health', (req, res) => res.send('OK'));
 
 // ── Session management ─────────────────────
@@ -106,7 +107,8 @@ async function startBot() {
 
   const sock = makeWASocket({
     version,
-    logger: pino({ level: 'silent' }),   // suppress internal Baileys noise
+    // 🔧 Temporarily set to 'info' so you can see connection status codes
+    logger: pino({ level: 'info' }),
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
@@ -114,8 +116,8 @@ async function startBot() {
     downloadHistory: false,
     markOnlineOnConnect: false,
     getMessage: async () => undefined,
-    connectTimeoutMs: 30_000,            // 30 seconds (faster failure)
-    defaultQueryTimeoutMs: 15_000,       // 15 seconds (prevents hanging)
+    connectTimeoutMs: 30_000,            // 30 seconds
+    defaultQueryTimeoutMs: 15_000,       // 15 seconds
   });
 
   // Extract owner number for notifications
@@ -171,7 +173,7 @@ app.listen(PORT, () => {
 });
 
 // ═══════════════════════════════════════════════
-// 🔁 STRONG SELF‑PING – keeps the Space/Instance alive
+// 🔁 STRONG SELF‑PING – keeps the instance alive
 // ═══════════════════════════════════════════════
 setInterval(() => {
   try {
