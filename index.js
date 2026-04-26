@@ -49,7 +49,11 @@ const handler = require('./handler');
 const app = express();
 const PORT = process.env.PORT || 7860;
 
+// Public landing page
 app.get('/', (req, res) => res.send('<h2>Bot is running…</h2>'));
+
+// Health endpoint for self‑ping and Docker health check
+app.get('/health', (req, res) => res.send('OK'));
 
 // ── Session management ─────────────────────
 const sessionFolder = `./${config.sessionName || 'session'}`;
@@ -173,3 +177,12 @@ app.listen(PORT, () => {
     setTimeout(startBot, 10_000);
   });
 });
+
+// ═══════════════════════════════════════════════
+// 🔁 STRONG SELF‑PING – keeps the Space alive
+// ═══════════════════════════════════════════════
+setInterval(() => {
+  try {
+    require('http').get(`http://localhost:${PORT}/health`);
+  } catch (e) {}
+}, 4 * 60 * 1000);   // every 4 minutes
