@@ -54,9 +54,9 @@ module.exports = {
 
     // API Keys (loaded from Hugging Face Secrets)
     apiKeys: {
-        openai: process.env.OPENAI_KEY || '',
-        gemini: process.env.GEMINI_KEY || '',
-        remove_bg: process.env.REMOVEBG_KEY || ''
+        openai: process.env.OPENAI_PAI_KEY || '',
+        gemini: process.env.GEMINI_API_KEY || '',
+        remove_bg: process.env.REMOVEBG_API_KEY || ''
     },
 
     // Message Configuration
