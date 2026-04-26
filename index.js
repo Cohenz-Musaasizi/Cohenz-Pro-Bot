@@ -1,5 +1,5 @@
 /**
- * WhatsApp Bot – Hugging Face (Session‑ID only, stable connection)
+ * WhatsApp Bot – Render / Hugging Face (Session‑ID only, stable)
  * No pairing code, no QR – uses KnightBot session from SESSION_ID secret.
  */
 
@@ -21,7 +21,7 @@ fs.writeFileSync(
 console.log('✅ Real mumaker bridge created');
 
 // ══════════════════════════════════════════════════════
-// 2. Dummy ffmpeg‑static (no change needed, just fix)
+// 2. Dummy ffmpeg‑static (points to system ffmpeg)
 // ══════════════════════════════════════════════════════
 const ffmpegStaticDir = path.join(__dirname, 'node_modules', 'ffmpeg-static');
 if (!fs.existsSync(ffmpegStaticDir)) {
@@ -45,14 +45,14 @@ const {
 const config = require('./config');
 const handler = require('./handler');
 
-// ── Express server (keeps Hugging Face alive) ──
+// ── Express server (keeps Render/HF alive) ──
 const app = express();
 const PORT = process.env.PORT || 7860;
 
 // Public landing page
 app.get('/', (req, res) => res.send('<h2>Bot is running…</h2>'));
 
-// Health endpoint for self‑ping and Docker health check
+// Health endpoint for self‑ping and Docker/UptimeRobot checks
 app.get('/health', (req, res) => res.send('OK'));
 
 // ── Session management ─────────────────────
@@ -74,12 +74,10 @@ function loadSessionFromEnv() {
     const [header, b64data] = sessionID.split('!');
     if (header !== 'KnightBot' || !b64data) throw new Error('Invalid format');
 
-    // Clean up any trailing dots that sometimes appear
     const cleanB64 = b64data.replace(/\.{3}$/, '');
     const compressed = Buffer.from(cleanB64, 'base64');
     const decompressed = zlib.gunzipSync(compressed);
 
-    // Ensure the session directory exists
     if (!fs.existsSync(sessionFolder)) {
       fs.mkdirSync(sessionFolder, { recursive: true });
     }
@@ -97,14 +95,12 @@ function loadSessionFromEnv() {
 // Bot startup
 // ═══════════════════════════════════════════
 async function startBot() {
-  // Try to load session from environment variable
   const sessionReady = loadSessionFromEnv();
   if (!sessionReady) {
     console.error('⚠️  Cannot start – no valid session. Add SESSION_ID secret and restart.');
     return;
   }
 
-  // Use the session we just wrote (or the existing one)
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -118,7 +114,8 @@ async function startBot() {
     downloadHistory: false,
     markOnlineOnConnect: false,
     getMessage: async () => undefined,
-    connectTimeoutMs: 60_000,            // wait a bit longer for connection
+    connectTimeoutMs: 30_000,            // 30 seconds (faster failure)
+    defaultQueryTimeoutMs: 15_000,       // 15 seconds (prevents hanging)
   });
 
   // Extract owner number for notifications
@@ -132,7 +129,6 @@ async function startBot() {
 
     if (connection === 'open') {
       console.log('✅ Bot connected successfully!');
-      // Notify owner
       try {
         await sock.sendMessage(ownerJid, { text: '✅ Bot is Online!' });
       } catch (e) {
@@ -142,11 +138,9 @@ async function startBot() {
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      // 401 = logged out (session invalid)
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       console.log(`🔁 Connection closed (status ${statusCode}). Reconnecting: ${shouldReconnect}`);
       if (shouldReconnect) {
-        // Wait before reconnecting to avoid hammering the server
         setTimeout(() => startBot(), 5000);
       } else {
         console.error('⛔ Session is logged out. Generate a new SESSION_ID from KnightBot site.');
@@ -154,7 +148,6 @@ async function startBot() {
     }
   });
 
-  // Save credentials whenever they update
   sock.ev.on('creds.update', saveCreds);
 
   // ── Message handler ─────────────────────
@@ -173,13 +166,12 @@ app.listen(PORT, () => {
   console.log(`🚀 Web UI listening on port ${PORT}`);
   startBot().catch((err) => {
     console.error('❌ Bot crashed:', err);
-    // Retry after a short delay
     setTimeout(startBot, 10_000);
   });
 });
 
 // ═══════════════════════════════════════════════
-// 🔁 STRONG SELF‑PING – keeps the Space alive
+// 🔁 STRONG SELF‑PING – keeps the Space/Instance alive
 // ═══════════════════════════════════════════════
 setInterval(() => {
   try {
