@@ -1,11 +1,11 @@
 // commands/media/song.js – Reliable audio document (.m4a)
 const yts = require('yt-search');
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl-core'); // More resistant to YouTube blocks
 const ffmpeg = require('fluent-ffmpeg');
 const axios = require('axios');
 const { PassThrough } = require('stream');
 
-// list of usable download APIs (tried in order)
+// Reliable download API to try first
 const DOWNLOADERS = [
   {
     name: 'flashdl',
@@ -17,14 +17,9 @@ const DOWNLOADERS = [
     url: (vu) => `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(vu)}`,
     extract: (d) => d?.url || d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
   },
-  {
-    name: 'yupra',
-    url: (vu) => `https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(vu)}`,
-    extract: (d) => d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
-  },
 ];
 
-// helper: check if a URL looks like a playable audio file
+// Helper to check if a URL looks like a playable audio file
 const looksLikeAudio = (url) =>
   url && (url.endsWith('.mp3') || url.endsWith('.m4a') || url.includes('audio/'));
 
@@ -43,7 +38,7 @@ module.exports = {
     let videoUrl = query;
     let videoTitle = '';
 
-    // search YouTube if the user typed a name
+    // Search YouTube if the user typed a name
     if (!/^https?:\/\//i.test(query)) {
       try {
         const search = await yts(query);
@@ -75,20 +70,18 @@ module.exports = {
 
       // 2. Try external download APIs first
       let audioBuffer = null;
-      let ext = '.m4a';  // default extension
 
       for (const dl of DOWNLOADERS) {
         try {
           const { data } = await axios.get(dl.url(videoUrl), { timeout: 15000 });
           const rawUrl = dl.extract(data);
           if (rawUrl && looksLikeAudio(rawUrl)) {
-            // download the file ourselves so we can send it as a document
+            // Download the file ourselves so we can send it as a document
             const resp = await axios.get(rawUrl, { responseType: 'arraybuffer', timeout: 30000 });
             audioBuffer = Buffer.from(resp.data);
-            ext = rawUrl.endsWith('.mp3') ? '.mp3' : '.m4a';
             break;
           }
-        } catch (e) { /* next */ }
+        } catch (e) { /* try next API */ }
       }
 
       // 3. If no API worked, fall back to ytdl-core + FFmpeg (aac)
@@ -99,7 +92,7 @@ module.exports = {
           highWaterMark: 1 << 25,
         });
 
-        // use aac codec (built‑in) → produce m4a (mp4 container)
+        // Use aac codec (built‑in) → produce m4a (mp4 container)
         const ffmpegProcess = ffmpeg(audioStream)
           .audioCodec('aac')
           .format('ipod')          // mp4 container, WhatsApp‑friendly
@@ -129,20 +122,18 @@ module.exports = {
             reject(err);
           });
         });
-        // buffer is m4a inside mp4 container
-        ext = '.m4a';
       }
 
       // 4. Build safe file name
       const safeName = videoTitle
-        ? videoTitle.replace(/[/\\?%*:|"<>]/g, '').trim() + ext
-        : `song${ext}`;
+        ? videoTitle.replace(/[/\\?%*:|"<>]/g, '').trim() + '.m4a'
+        : 'song.m4a';
 
       // 5. Send as document with proper mimetype
       await sock.sendMessage(from, {
         document: audioBuffer,
         fileName: safeName,
-        mimetype: ext === '.mp3' ? 'audio/mpeg' : 'audio/mp4',
+        mimetype: 'audio/mp4',
       }, { quoted: msg });
 
     } catch (err) {
