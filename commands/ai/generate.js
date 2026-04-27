@@ -14,7 +14,7 @@ module.exports = {
     const prompt = args.join(' ');
     if (!prompt) return reply('❌ Example: .generate a sleeping cat');
 
-    const openaiKey = config.apiKeys.openai || process.env.OPENAI_KEY;
+    const openaiKey = config.apiKeys.openai || process.env.OPENAI_API_KEY;
 
     if (openaiKey) {
       // Use DALL‑E
