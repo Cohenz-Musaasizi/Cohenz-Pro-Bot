@@ -1,11 +1,11 @@
-// commands/media/song.js – Reliable audio document (.m4a)
+// commands/media/song.js – reliable song download (FlashDL API)
 const yts = require('yt-search');
-const ytdl = require('@distube/ytdl-core'); // More resistant to YouTube blocks
-const ffmpeg = require('fluent-ffmpeg');
 const axios = require('axios');
+const ytdl = require('@distube/ytdl-core');
+const ffmpeg = require('fluent-ffmpeg');
 const { PassThrough } = require('stream');
 
-// Reliable download API to try first
+// Primary download APIs (tried in order)
 const DOWNLOADERS = [
   {
     name: 'flashdl',
@@ -19,7 +19,6 @@ const DOWNLOADERS = [
   },
 ];
 
-// Helper to check if a URL looks like a playable audio file
 const looksLikeAudio = (url) =>
   url && (url.endsWith('.mp3') || url.endsWith('.m4a') || url.includes('audio/'));
 
@@ -38,7 +37,6 @@ module.exports = {
     let videoUrl = query;
     let videoTitle = '';
 
-    // Search YouTube if the user typed a name
     if (!/^https?:\/\//i.test(query)) {
       try {
         const search = await yts(query);
@@ -55,28 +53,25 @@ module.exports = {
     try {
       await sock.sendPresenceUpdate('composing', from);
 
-      // 1. Send thumbnail (if we have a title)
-      if (videoTitle) {
-        const vidId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1];
-        if (vidId) {
-          try {
-            await sock.sendMessage(from, {
-              image: { url: `https://img.youtube.com/vi/${vidId}/hqdefault.jpg` },
-              caption: `🎵 *${videoTitle}*`,
-            }, { quoted: msg });
-          } catch (e) {}
-        }
+      // 1. Send thumbnail (if available)
+      const vidId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1];
+      if (vidId && videoTitle) {
+        try {
+          await sock.sendMessage(from, {
+            image: { url: `https://img.youtube.com/vi/${vidId}/hqdefault.jpg` },
+            caption: `🎵 *${videoTitle}*`,
+          }, { quoted: msg });
+        } catch (e) {}
       }
 
-      // 2. Try external download APIs first
       let audioBuffer = null;
 
+      // 2. Try download APIs first
       for (const dl of DOWNLOADERS) {
         try {
           const { data } = await axios.get(dl.url(videoUrl), { timeout: 15000 });
           const rawUrl = dl.extract(data);
           if (rawUrl && looksLikeAudio(rawUrl)) {
-            // Download the file ourselves so we can send it as a document
             const resp = await axios.get(rawUrl, { responseType: 'arraybuffer', timeout: 30000 });
             audioBuffer = Buffer.from(resp.data);
             break;
@@ -84,7 +79,7 @@ module.exports = {
         } catch (e) { /* try next API */ }
       }
 
-      // 3. If no API worked, fall back to ytdl-core + FFmpeg (aac)
+      // 3. Fallback to ytdl-core + FFmpeg (aac) if all APIs failed
       if (!audioBuffer) {
         const audioStream = ytdl(videoUrl, {
           quality: 'highestaudio',
@@ -92,15 +87,12 @@ module.exports = {
           highWaterMark: 1 << 25,
         });
 
-        // Use aac codec (built‑in) → produce m4a (mp4 container)
         const ffmpegProcess = ffmpeg(audioStream)
           .audioCodec('aac')
-          .format('ipod')          // mp4 container, WhatsApp‑friendly
+          .format('ipod')
           .audioBitrate('128k')
           .audioChannels(2)
-          .on('error', (err) => {
-            console.error('FFmpeg error:', err);
-          });
+          .on('error', (err) => console.error('FFmpeg error:', err));
 
         const chunks = [];
         const outputStream = new PassThrough();
@@ -112,7 +104,6 @@ module.exports = {
             ffmpegProcess.kill();
             reject(new Error('Conversion timed out'));
           }, 60000);
-
           ffmpegProcess.on('end', () => {
             clearTimeout(timer);
             resolve(Buffer.concat(chunks));
@@ -124,12 +115,8 @@ module.exports = {
         });
       }
 
-      // 4. Build safe file name
-      const safeName = videoTitle
-        ? videoTitle.replace(/[/\\?%*:|"<>]/g, '').trim() + '.m4a'
-        : 'song.m4a';
+      const safeName = videoTitle ? videoTitle.replace(/[/\\?%*:|"<>]/g, '').trim() + '.m4a' : 'song.m4a';
 
-      // 5. Send as document with proper mimetype
       await sock.sendMessage(from, {
         document: audioBuffer,
         fileName: safeName,
