@@ -6,51 +6,47 @@ module.exports = {
   name: 'menu',
   aliases: ['help', 'commands'],
   category: 'utility',
-  description: 'Show all available commands with usage instructions',
-  usage: '.menu (or .help)',
+  description: 'Show all available commands',
+  usage: '.menu',
 
   async execute(sock, msg, args, context) {
     const { reply } = context;
-    const commands = loadCommands(); // returns Map
+    const commands = loadCommands();
 
     if (commands.size === 0) return reply('❌ No commands loaded.');
 
-    // Group commands by category, keep only unique command names (ignore aliases)
+    // Group commands by category, only keep the main command name (skip aliases)
     const categories = new Map();
-    for (const [cmdName, cmd] of commands) {
-      // Skip aliases – only add actual command names
-      if (cmd.name && cmd.name === cmdName) {
-        const cat = cmd.category || 'misc';
-        if (!categories.has(cat)) categories.set(cat, []);
-        categories.get(cat).push(cmd);
-      }
+    for (const [name, cmd] of commands) {
+      if (cmd.name !== name) continue;           // skip aliases
+      const cat = cmd.category || 'misc';
+      if (!categories.has(cat)) categories.set(cat, []);
+      categories.get(cat).push(cmd);
     }
 
-    // Sort categories and commands within them
-    for (const [cat, cmds] of categories) {
+    // Sort categories and commands alphabetically
+    for (const cmds of categories.values()) {
       cmds.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    // Build menu text
-    let text = `╭━❮ *${config.botName || 'Bot'} MENU* ❯━╮\n\n`;
-    text += `✨ Welcome! Here are all available commands.\n`;
-    text += `💡 Use *${config.prefix}help <command>* for more details about a specific command.\n\n`;
+    let text = `╭━❮ *${config.botName || 'Bot'}* ❯━╮\n\n`;
 
     for (const [cat, cmds] of categories) {
       text += `📂 *${cat}*\n`;
       for (const cmd of cmds) {
-        const desc = cmd.description || '';
-        const usage = cmd.usage || '';
-        const descLine = desc ? ` - ${desc}` : '';
-        const usageLine = usage ? `\n   Usage: \`${usage}\`` : '';
-        text += `  ▸ *${config.prefix}${cmd.name}*${descLine}${usageLine}\n`;
+        // Take only the first sentence or first 30 characters of the description
+        const short = cmd.description
+          ? cmd.description.split('.')[0].slice(0, 40).trim()
+          : '';
+        const desc = short ? ` - ${short}` : '';
+        text += `  ▸ .${cmd.name}${desc}\n`;
       }
       text += '\n';
     }
 
     text += `╰━━━━━━━━━━━━━━━━╯\n`;
     text += `Prefix: ${config.prefix}\n`;
-    text += `Total: ${commands.size} commands (including aliases)\n`;
+    text += `Total: ${commands.size} commands\n`;
     text += `Type ${config.prefix}help <command> for detailed help.`;
 
     await reply(text);
