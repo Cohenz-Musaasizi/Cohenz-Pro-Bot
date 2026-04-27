@@ -1,102 +1,43 @@
-/**
- * Video Downloader - Download video from YouTube
- */
+// commands/media/video.js
+const axios = require('axios');
 
-const yts = require('yt-search');
-const APIs = require('../../utils/api');
-const config = require('../../config');
+const PLATFORMS = {
+  youtube:     'ytmp4',
+  instagram:   'igdl',
+  tiktok:      'tiktok',
+  facebook:    'fbdl',
+  twitter:     'twitterdl',
+};
 
 module.exports = {
-  name: 'ytvideo',
-  aliases: ['ytv', 'ytmp4', 'ytvid', 'video'],
+  name: 'video',
+  aliases: ['dlvideo', 'getvideo', 'downloadvideo'],
   category: 'media',
-  description: 'Download video from YouTube',
-  usage: '.video <video name or URL>',
+  description: 'Download video from YouTube, IG, TikTok, FB, Twitter by link',
+  usage: '.video https://instagram.com/p/xxx  (or .video https://youtu.be/xxx)',
 
-  async execute(sock, msg, args) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
+    const url = args[0];
+    if (!url || !/^https?:\/\//i.test(url)) return reply('❌ Provide a valid link.\nExample: .video https://youtu.be/xxx');
+
+    const u = url.toLowerCase();
+    let platform = 'youtube';
+    if (u.includes('instagram.com')) platform = 'instagram';
+    else if (u.includes('tiktok.com')) platform = 'tiktok';
+    else if (u.includes('facebook.com') || u.includes('fb.watch')) platform = 'facebook';
+    else if (u.includes('twitter.com') || u.includes('x.com')) platform = 'twitter';
+
     try {
-      // Get instance-specific config
-      const instanceConfig = config.getConfigFromSocket(sock);
-
-      const text = args.join(' ');
-      const chatId = msg.key.remoteJid;
-
-      const searchQuery = text.trim();
-
-      if (!searchQuery) {
-        return await sock.sendMessage(chatId, {
-          text: 'What video do you want to download?'
-        }, { quoted: msg });
-      }
-
-      // Determine if input is a YouTube link
-      let videoUrl = '';
-      let videoTitle = '';
-      let videoThumbnail = '';
-
-      if (searchQuery.startsWith('http://') || searchQuery.startsWith('https://')) {
-        videoUrl = searchQuery;
-      } else {
-        // Search YouTube for the video
-        const { videos } = await yts(searchQuery);
-        if (!videos || videos.length === 0) {
-          return await sock.sendMessage(chatId, {
-            text: 'No videos found!'
-          }, { quoted: msg });
-        }
-        videoUrl = videos[0].url;
-        videoTitle = videos[0].title;
-        videoThumbnail = videos[0].thumbnail;
-      }
-
-      // Send thumbnail immediately
-      try {
-        const ytId = (videoUrl.match(/(?:youtu\.be\/|v=)([a-zA-Z0-9_-]{11})/) || [])[1];
-        const thumb = videoThumbnail || (ytId ? `https://i.ytimg.com/vi/${ytId}/sddefault.jpg` : undefined);
-        const captionTitle = videoTitle || searchQuery;
-        if (thumb) {
-          await sock.sendMessage(chatId, {
-            image: { url: thumb },
-            caption: `*${captionTitle}*\nDownloading...`
-          }, { quoted: msg });
-        }
-      } catch (e) {
-        console.error('[VIDEO] thumb error:', e?.message || e);
-      }
-
-      // Validate YouTube URL
-      let urls = videoUrl.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([a-zA-Z0-9_-]{11})/gi);
-      if (!urls) {
-        return await sock.sendMessage(chatId, {
-          text: 'This is not a valid YouTube link!'
-        }, { quoted: msg });
-      }
-
-      // Get video: try EliteProTech first, then Yupra, then Okatsu fallback
-      let videoData;
-      try {
-        videoData = await APIs.getEliteProTechVideoByUrl(videoUrl);
-      } catch (e1) {
-        try {
-          videoData = await APIs.getYupraVideoByUrl(videoUrl);
-        } catch (e2) {
-          videoData = await APIs.getOkatsuVideoByUrl(videoUrl);
-        }
-      }
-
-      // Send video directly using the download URL
-      await sock.sendMessage(chatId, {
-        video: { url: videoData.download },
-        mimetype: 'video/mp4',
-        fileName: `${(videoData.title || videoTitle || 'video').replace(/[^\w\s-]/g, '')}.mp4`,
-        caption: `*${videoData.title || videoTitle || 'Video'}*\n\n> *_Downloaded by ${instanceConfig.botName}_*`
-      }, { quoted: msg });
-
-    } catch (error) {
-      console.error('[VIDEO] Command Error:', error?.message || error);
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: 'Download failed: ' + (error?.message || 'Unknown error')
-      }, { quoted: msg });
+      await sock.sendPresenceUpdate('composing', from);
+      const { data } = await axios.get(`https://api.siputzx.my.id/api/d/${PLATFORMS[platform]}?url=${encodeURIComponent(url)}`);
+      const videoUrl = data?.url || data?.data?.download_url || data?.data?.url || data?.data?.video_url;
+      if (!videoUrl) throw new Error('No video link returned');
+      await sock.sendMessage(from, { video: { url: videoUrl } }, { quoted: msg });
+    } catch (err) {
+      await reply(`❌ Failed: ${err.message}`);
+    } finally {
+      await sock.sendPresenceUpdate('paused', from);
     }
   }
 };
