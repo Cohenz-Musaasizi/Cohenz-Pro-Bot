@@ -379,8 +379,6 @@ const handleMessage = async (sock, msg) => {
     
     if (!msg.message) return;
     
-    if (msg.key.fromMe) return;   // <-- ADD THIS LINE
-    
     const from = msg.key.remoteJid;
     
     // System message filter - ignore broadcast/status/newsletter messages
