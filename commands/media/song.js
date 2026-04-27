@@ -1,37 +1,8 @@
-// commands/media/song.js – Reliable Audio Download with Format Check
+// commands/media/song.js – Direct MP3 Document + Thumbnail
 const yts = require('yt-search');
-const axios = require('axios');
-
-// Verify that a URL points to a valid audio format WhatsApp can play
-const isValidAudioUrl = (url) => {
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  return lower.endsWith('.mp3') || lower.endsWith('.m4a') || lower.includes('audio/mpeg') || lower.includes('audio/mp4');
-};
-
-// Best free MP3 downloader services (prioritize those returning real .mp3 URLs)
-const DOWNLOADERS = [
-  {
-    name: 'flashdl',
-    url: (vu) => `https://api.flashdl.one/api/youtube/download?url=${encodeURIComponent(vu)}&type=mp3`,
-    extract: (d) => d?.data?.downloadUrl || d?.downloadUrl || d?.url,
-  },
-  {
-    name: 'siputzx',
-    url: (vu) => `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(vu)}`,
-    extract: (d) => d?.url || d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
-  },
-  {
-    name: 'yupra',
-    url: (vu) => `https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(vu)}`,
-    extract: (d) => d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
-  },
-  {
-    name: 'okatsu',
-    url: (vu) => `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${encodeURIComponent(vu)}`,
-    extract: (d) => d?.dl || d?.download || d?.url || d?.data?.url,
-  },
-];
+const ytdl = require('ytdl-core');
+const ffmpeg = require('fluent-ffmpeg');
+const { PassThrough } = require('stream');
 
 module.exports = {
   name: 'song',
@@ -47,7 +18,9 @@ module.exports = {
 
     let videoUrl = query;
     let videoTitle = '';
+    let thumbnailUrl = '';
 
+    // Search YouTube if user typed a name
     if (!/^https?:\/\//i.test(query)) {
       try {
         const search = await yts(query);
@@ -55,6 +28,7 @@ module.exports = {
         const vid = search.videos[0];
         videoUrl = vid.url;
         videoTitle = vid.title;
+        thumbnailUrl = vid.thumbnail;
         await reply(`🔍 Found: *${videoTitle}*`);
       } catch (err) {
         return reply('❌ Could not find any video.');
@@ -64,25 +38,67 @@ module.exports = {
     try {
       await sock.sendPresenceUpdate('composing', from);
 
-      let downloadUrl = null;
-      for (const dl of DOWNLOADERS) {
+      // 1. Send thumbnail first
+      if (thumbnailUrl) {
         try {
-          const { data } = await axios.get(dl.url(videoUrl), { timeout: 20000 });
-          const extracted = dl.extract(data);
-          if (extracted && isValidAudioUrl(extracted)) {
-            downloadUrl = extracted;
-            break;
-          }
-        } catch (e) { /* try next */ }
+          await sock.sendMessage(from, {
+            image: { url: thumbnailUrl },
+            caption: `🎵 *${videoTitle}*`,
+          }, { quoted: msg });
+        } catch (e) {}
       }
 
-      if (!downloadUrl) throw new Error('All download services failed or returned unplayable files.');
+      // 2. Stream audio from YouTube + convert to MP3 using ffmpeg
+      const audioStream = ytdl(videoUrl, {
+        quality: 'highestaudio',
+        filter: 'audioonly',
+        highWaterMark: 1 << 25,  // 32 MB buffer
+      });
 
-      // Send as audio with explicit mimetype to ensure compatibility
+      // Build the ffmpeg command: output as MP3 with libmp3lame
+      const ffmpegProcess = ffmpeg(audioStream)
+        .audioCodec('libmp3lame')
+        .format('mp3')
+        .audioBitrate('128k')
+        .audioChannels(2)
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err);
+          reply('❌ Error converting audio.');
+        });
+
+      const chunks = [];
+      const outputStream = new PassThrough();
+      outputStream.on('data', (chunk) => chunks.push(chunk));
+
+      ffmpegProcess.pipe(outputStream);
+
+      // Wait for conversion to finish
+      const mp3Buffer = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          ffmpegProcess.kill();
+          reject(new Error('Audio conversion timed out'));
+        }, 60000);  // 60 seconds max
+
+        ffmpegProcess.on('end', () => {
+          clearTimeout(timeout);
+          resolve(Buffer.concat(chunks));
+        });
+        ffmpegProcess.on('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      });
+
+      // 3. Prepare filename (replace illegal characters)
+      const safeTitle = videoTitle
+        ? videoTitle.replace(/[/\\?%*:|"<>]/g, '') + '.mp3'
+        : 'song.mp3';
+
+      // 4. Send as a document with the original song name
       await sock.sendMessage(from, {
-        audio: { url: downloadUrl },
-        mimetype: 'audio/mp4',  // WhatsApp prefers MP4 audio container
-        ptt: false,
+        document: mp3Buffer,
+        fileName: safeTitle,
+        mimetype: 'audio/mpeg',
       }, { quoted: msg });
 
     } catch (err) {
