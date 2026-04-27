@@ -1,17 +1,26 @@
-async execute(sock, msg, args, extra) {
-  const { from, reply } = extra;
-  const prompt = args.join(' ');
-  if (!prompt) return reply('❌ Usage: .ai <question>');
+// commands/ai/ai.js
+const APIs = require('../../utils/api');
 
-  // Use Gemini with full memory and slang
-  try {
-    await sock.sendPresenceUpdate('composing', from);
-    const APIs = require('../../utils/api');
-    const response = await APIs.gemini(prompt, from);
-    await reply(response);
-  } catch (err) {
-    await reply(`❌ AI Error: ${err.message}`);
-  } finally {
-    await sock.sendPresenceUpdate('paused', from);
+module.exports = {
+  name: 'ai',
+  aliases: ['gpt', 'ask'],
+  category: 'ai',
+  description: 'Chat with AI (uses Gemini, with memory)',
+  usage: '.ai <your question>',
+
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
+    const prompt = args.join(' ');
+    if (!prompt) return reply('❌ Usage: .ai <question>');
+
+    try {
+      await sock.sendPresenceUpdate('composing', from);
+      const response = await APIs.gemini(prompt, from);
+      await reply(response);
+    } catch (err) {
+      await reply(`❌ ${err.message}`);
+    } finally {
+      await sock.sendPresenceUpdate('paused', from);
+    }
   }
-}
+};
