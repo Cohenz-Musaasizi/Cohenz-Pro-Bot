@@ -1,81 +1,85 @@
-// utils/mumaker.js – Guaranteed unique text effects via API
-const axios = require('axios');
+// utils/mumaker.js – permanent, offline text effects using canvas
+const { createCanvas } = require('canvas');
 
-const BASE_URL = 'https://api.siputzx.my.id/api/maker/textpro';
-
-// Map command effect names to their actual TextPro theme names
-const effectMap = {
-    purple: 'purple',
-    thunder: 'thunder',
-    neon: 'neon',
-    sand: 'sand',
-    glitch: 'glitch',
-    blackpink: 'blackpink',
-    hacker: 'hacker',
-    devil: 'devil',
-    matrix: 'matrix',
-    light: 'light',
-    snow: 'snow',
-    ice: 'ice',
-    metallic: 'metallic',
-    impressive: 'impressive',
-    leaves: 'leaves',
-    arena: 'arena',
-    fire: 'fire',
-    '1917': '1917',
+// Colour and style settings per effect (feel free to tweak)
+const STYLES = {
+  purple:    { bg: '#4a148c', text: '#e1bee7', font: 'bold 48px "DejaVu Sans"' },
+  thunder:   { bg: '#212121', text: '#ffeb3b', font: 'bold 48px "DejaVu Sans"' },
+  neon:      { bg: '#000000', text: '#00e5ff', font: 'italic bold 48px "DejaVu Sans"' },
+  sand:      { bg: '#f4e1a1', text: '#5d4e37', font: 'bold 48px "DejaVu Sans"' },
+  glitch:    { bg: '#1a1a1a', text: '#ff4081', font: 'bold 48px "Courier New"' },
+  blackpink: { bg: '#111111', text: '#ff1493', font: 'bold 48px "DejaVu Sans"' },
+  hacker:    { bg: '#0d0d0d', text: '#00ff00', font: 'bold 48px "Courier New"' },
+  devil:     { bg: '#1a0000', text: '#ff3333', font: 'bold 48px "DejaVu Sans"' },
+  matrix:    { bg: '#0a0a0a', text: '#00ff00', font: 'bold 48px "Courier New"' },
+  light:     { bg: '#ffffff', text: '#222222', font: 'bold 48px "DejaVu Sans"' },
+  snow:      { bg: '#e0f7fa', text: '#006064', font: 'bold 48px "DejaVu Sans"' },
+  ice:       { bg: '#e3f2fd', text: '#0d47a1', font: 'bold 48px "DejaVu Sans"' },
+  metallic:  { bg: '#37474f', text: '#cfd8dc', font: 'bold 48px "DejaVu Sans"' },
+  impressive:{ bg: '#311b92', text: '#d1c4e9', font: 'bold 48px "DejaVu Sans"' },
+  leaves:    { bg: '#2e7d32', text: '#c8e6c9', font: 'bold 48px "DejaVu Sans"' },
+  arena:     { bg: '#4e342e', text: '#ffb300', font: 'bold 48px "DejaVu Sans"' },
+  fire:      { bg: '#b71c1c', text: '#ffcc80', font: 'bold 48px "DejaVu Sans"' },
+  '1917':    { bg: '#5d4037', text: '#f5f5dc', font: 'bold 48px "DejaVu Sans"' },
 };
 
-/**
- * Calls the API to generate a real text effect.
- */
-async function createEffect(effect, text) {
-    if (!text) throw new Error('No text provided');
+const defaultStyle = { bg: '#1e1e2e', text: '#cdd6f4', font: 'bold 48px "DejaVu Sans"' };
 
-    // Use the effect name itself as the API theme parameter
-    const apiTheme = effectMap[effect] || effect;
+function generateImage(effect, text) {
+  const style = STYLES[effect] || defaultStyle;
+  const width = 800;
+  const height = 300;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
 
-    try {
-        const { data } = await axios.get(`${BASE_URL}/${apiTheme}`, {
-            params: { text },
-            timeout: 15000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
+  // Background
+  ctx.fillStyle = style.bg;
+  ctx.fillRect(0, 0, width, height);
 
-        // The API may return a URL directly or inside an object
-        const imageUrl = data?.url || (typeof data === 'string' && data.startsWith('http') ? data : null);
-        if (!imageUrl) throw new Error('No image URL returned');
+  // Main text
+  ctx.fillStyle = style.text;
+  ctx.font = style.font;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, width / 2, height / 2);
 
-        return { image: imageUrl };
-    } catch (err) {
-        console.error(`Textpro API error (${effect}):`, err.message);
-        throw new Error(`Failed to generate ${effect} effect. Please try again later.`);
-    }
+  // Small effect label at top‑left
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '18px "DejaVu Sans"';
+  ctx.fillText(effect.toUpperCase(), 20, 30);
+
+  return canvas.toBuffer('image/png');
 }
 
-// Generic ephoto method (called by many commands)
-const ephoto = async (url, text) => createEffect('purple', text);
+function createEffect(effect, text) {
+  if (!text) throw new Error('No text provided');
+  const buffer = generateImage(effect, text);
+  return { image: `data:image/png;base64,${buffer.toString('base64')}` };
+}
+
+// Generic ephoto (many commands call this)
+const ephoto = (_, text) => createEffect('purple', text);
 
 module.exports = {
-    ephoto,
-    purple:     (t) => createEffect('purple', t),
-    thunder:    (t) => createEffect('thunder', t),
-    neon:       (t) => createEffect('neon', t),
-    sand:       (t) => createEffect('sand', t),
-    glitch:     (t) => createEffect('glitch', t),
-    blackpink:  (t) => createEffect('blackpink', t),
-    hacker:     (t) => createEffect('hacker', t),
-    devil:      (t) => createEffect('devil', t),
-    matrix:     (t) => createEffect('matrix', t),
-    light:      (t) => createEffect('light', t),
-    snow:       (t) => createEffect('snow', t),
-    ice:        (t) => createEffect('ice', t),
-    metallic:   (t) => createEffect('metallic', t),
-    impressive: (t) => createEffect('impressive', t),
-    leaves:     (t) => createEffect('leaves', t),
-    arena:      (t) => createEffect('arena', t),
-    fire:       (t) => createEffect('fire', t),
-    '1917':     (t) => createEffect('1917', t),
-    // Aliases for common typos
-    ephto: ephoto,
-    exec:  (t) => createEffect('purple', t),
+  ephoto,
+  purple:     (t) => createEffect('purple', t),
+  thunder:    (t) => createEffect('thunder', t),
+  neon:       (t) => createEffect('neon', t),
+  sand:       (t) => createEffect('sand', t),
+  glitch:     (t) => createEffect('glitch', t),
+  blackpink:  (t) => createEffect('blackpink', t),
+  hacker:     (t) => createEffect('hacker', t),
+  devil:      (t) => createEffect('devil', t),
+  matrix:     (t) => createEffect('matrix', t),
+  light:      (t) => createEffect('light', t),
+  snow:       (t) => createEffect('snow', t),
+  ice:        (t) => createEffect('ice', t),
+  metallic:   (t) => createEffect('metallic', t),
+  impressive: (t) => createEffect('impressive', t),
+  leaves:     (t) => createEffect('leaves', t),
+  arena:      (t) => createEffect('arena', t),
+  fire:       (t) => createEffect('fire', t),
+  '1917':     (t) => createEffect('1917', t),
+  ephto: ephoto,
+  exec:  (t) => createEffect('purple', t),
 };
