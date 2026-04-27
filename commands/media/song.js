@@ -1,20 +1,21 @@
+// commands/media/song.js – Reliable Audio Download with Format Check
 const yts = require('yt-search');
 const axios = require('axios');
 
-// Extract video ID from various YouTube URL formats
-const getVideoId = (url) => {
-  const match = url.match(/(?:youtu\.be\/|watch\?v=|\/embed\/|\/v\/|\.be\/)([a-zA-Z0-9_-]{11})/);
-  return match ? match[1] : null;
+// Verify that a URL points to a valid audio format WhatsApp can play
+const isValidAudioUrl = (url) => {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return lower.endsWith('.mp3') || lower.endsWith('.m4a') || lower.includes('audio/mpeg') || lower.includes('audio/mp4');
 };
 
-// Thumbnail URL from video ID
-const getThumbnail = (url) => {
-  const id = getVideoId(url);
-  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
-};
-
-// Multiple downloader backends to try in order
+// Best free MP3 downloader services (prioritize those returning real .mp3 URLs)
 const DOWNLOADERS = [
+  {
+    name: 'flashdl',
+    url: (vu) => `https://api.flashdl.one/api/youtube/download?url=${encodeURIComponent(vu)}&type=mp3`,
+    extract: (d) => d?.data?.downloadUrl || d?.downloadUrl || d?.url,
+  },
   {
     name: 'siputzx',
     url: (vu) => `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(vu)}`,
@@ -29,11 +30,6 @@ const DOWNLOADERS = [
     name: 'okatsu',
     url: (vu) => `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${encodeURIComponent(vu)}`,
     extract: (d) => d?.dl || d?.download || d?.url || d?.data?.url,
-  },
-  {
-    name: 'eliteprotech',
-    url: (vu) => `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(vu)}&format=mp3`,
-    extract: (d) => d?.downloadURL || d?.data?.downloadURL,
   },
 ];
 
@@ -51,9 +47,7 @@ module.exports = {
 
     let videoUrl = query;
     let videoTitle = '';
-    let thumbnailUrl = '';
 
-    // Search YouTube if user typed a name (not a direct URL)
     if (!/^https?:\/\//i.test(query)) {
       try {
         const search = await yts(query);
@@ -61,49 +55,33 @@ module.exports = {
         const vid = search.videos[0];
         videoUrl = vid.url;
         videoTitle = vid.title;
-        thumbnailUrl = vid.thumbnail || getThumbnail(videoUrl);
         await reply(`🔍 Found: *${videoTitle}*`);
       } catch (err) {
         return reply('❌ Could not find any video.');
       }
-    } else {
-      thumbnailUrl = getThumbnail(videoUrl);
     }
 
     try {
       await sock.sendPresenceUpdate('composing', from);
 
-      // 1. Send thumbnail first
-      if (thumbnailUrl) {
-        try {
-          await sock.sendMessage(from, {
-            image: { url: thumbnailUrl },
-            caption: videoTitle ? `🎵 *${videoTitle}*` : '🎵 Your Song',
-          }, { quoted: msg });
-        } catch (e) { /* ignore if thumbnail fails */ }
-      }
-
-      // 2. Try each downloader until one works
       let downloadUrl = null;
       for (const dl of DOWNLOADERS) {
         try {
           const { data } = await axios.get(dl.url(videoUrl), { timeout: 20000 });
           const extracted = dl.extract(data);
-          if (extracted) {
+          if (extracted && isValidAudioUrl(extracted)) {
             downloadUrl = extracted;
             break;
           }
-        } catch (e) {
-          // try next one
-        }
+        } catch (e) { /* try next */ }
       }
 
-      if (!downloadUrl) throw new Error('All download services failed. Please try again later.');
+      if (!downloadUrl) throw new Error('All download services failed or returned unplayable files.');
 
-      // 3. Send audio
+      // Send as audio with explicit mimetype to ensure compatibility
       await sock.sendMessage(from, {
         audio: { url: downloadUrl },
-        mimetype: 'audio/mp4',
+        mimetype: 'audio/mp4',  // WhatsApp prefers MP4 audio container
         ptt: false,
       }, { quoted: msg });
 
