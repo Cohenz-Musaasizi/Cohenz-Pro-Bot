@@ -97,7 +97,7 @@ async function startBot() {
 
   const sock = makeWASocket({
     version,
-    logger: pino({ level: 'silent' }),   // keep logs quiet
+    logger: pino({ level: 'info' }),   // keep logs quiet
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
