@@ -10,7 +10,7 @@ module.exports = {
   aliases: [],
   category: 'textmaker',
   description: 'Create arena text effect',
-  usage: '.arena <text>',
+  usage: '.blackpink <text>',
   
   async execute(sock, msg, args) {
     try {
@@ -24,7 +24,7 @@ module.exports = {
       }
 
       // ←←← Change ONLY this URL for each command ↓↓↓
-      const ephotoUrl = 'https://en.ephoto360.com/create-cover-arena-of-valor-by-mastering-360.html';
+      const ephotoUrl = 'https://en.ephoto360.com/create-blackpink-style-text-effect-online-792.html';
 
       const result = await mumaker.ephoto(ephotoUrl, text);
 
