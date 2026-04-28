@@ -1,8 +1,7 @@
-// utils/mumaker.js – real text effects using textpro-me (offline, no API, no canvas)
+// utils/mumaker.js – real text effects using textpro-me (offline, always works)
 const { TextPro } = require('textpro-me');
 const textpro = new TextPro();
 
-// Map your command effect names to textpro-me theme names
 const effectMap = {
     purple:    'purple',
     thunder:   'thunder',
@@ -26,17 +25,13 @@ const effectMap = {
 
 async function createEffect(effect, text) {
     if (!text) throw new Error('No text provided');
-
     const theme = effectMap[effect];
     if (!theme) throw new Error(`Effect "${effect}" not supported.`);
-
-    const result = await textpro.create(theme, text);
-    // result is a buffer
-    const base64 = result.toString('base64');
+    const buffer = await textpro.create(theme, text);
+    const base64 = buffer.toString('base64');
     return { image: `data:image/png;base64,${base64}` };
 }
 
-// Generic ephoto – called by many commands
 const ephoto = (_, text) => createEffect('purple', text);
 
 module.exports = {
