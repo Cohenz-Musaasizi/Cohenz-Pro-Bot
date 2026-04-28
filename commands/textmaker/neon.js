@@ -24,7 +24,7 @@ module.exports = {
       }
 
       // ←←← Change ONLY this URL for each command ↓↓↓
-      const ephotoUrl = 'https://en.ephoto360.com/create-cover-arena-of-valor-by-mastering-360.html';
+      const ephotoUrl = 'https://en.ephoto360.com/create-colorful-neon-light-text-effects-online-797.html';
 
       const result = await mumaker.ephoto(ephotoUrl, text);
 
