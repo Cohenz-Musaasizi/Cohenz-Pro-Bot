@@ -6,11 +6,11 @@ const mumaker = require('mumaker');
 const config = require('../../config');
 
 module.exports = {
-  name: 'arena',
+  name: 'impressive',
   aliases: [],
   category: 'textmaker',
   description: 'Create bold arena text effect',
-  usage: '.arena <text>',
+  usage: '.impressive <text>',
   
   async execute(sock, msg, args) {
     try {
@@ -24,7 +24,7 @@ module.exports = {
       }
       
       // Better bold arena / gaming style
-      const result = await mumaker.ephoto('https://en.ephoto360.com/create-cover-arena-of-valor-by-mastering-360.html', text);
+      const result = await mumaker.ephoto('https://en.ephoto360.com/create-impressive-neon-glitch-text-effects-online-768.html', text);
       
       await sock.sendMessage(chatId, {
         image: { url: result.image },
