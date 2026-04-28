@@ -1,20 +1,5 @@
-// commands/media/song.js – Crash-proof song download
 const yts = require('yt-search');
 const axios = require('axios');
-
-// Primary download APIs (tried in order)
-const DOWNLOADERS = [
-  {
-    name: 'siputzx',
-    url: (vu) => `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(vu)}`,
-    extract: (d) => d?.url || d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
-  },
-  {
-    name: 'yupra',
-    url: (vu) => `https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(vu)}`,
-    extract: (d) => d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
-  },
-];
 
 module.exports = {
   name: 'song',
@@ -31,69 +16,76 @@ module.exports = {
     let videoUrl = query;
     let videoTitle = '';
 
-    // 1. Search YouTube if necessary
-    try {
-      if (!/^https?:\/\//i.test(query)) {
+    // Search YouTube if needed
+    if (!/^https?:\/\//i.test(query)) {
+      try {
         const search = await yts(query);
-        if (!search.videos.length) throw new Error('No results found on YouTube');
-        const vid = search.videos[0];
-        videoUrl = vid.url;
-        videoTitle = vid.title;
+        if (!search.videos.length) throw new Error('No results');
+        videoUrl = search.videos[0].url;
+        videoTitle = search.videos[0].title;
         await reply(`🔍 Found: *${videoTitle}*`);
+      } catch (e) {
+        return reply('❌ Could not find any video. Try different keywords.');
       }
-    } catch (err) {
-      return reply('❌ Could not find any video. Try different keywords.');
     }
 
-    // 2. Send thumbnail (non-critical, wrapped safely)
+    // Try to send thumbnail
     try {
       const vidId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1];
-      if (vidId && videoTitle) {
+      if (vidId) {
         await sock.sendMessage(from, {
           image: { url: `https://img.youtube.com/vi/${vidId}/hqdefault.jpg` },
-          caption: `🎵 *${videoTitle}*`,
+          caption: videoTitle ? `🎵 *${videoTitle}*` : '🎵 Your song',
         }, { quoted: msg });
       }
     } catch (e) {}
 
-    // 3. Download the audio
-    let downloadUrl = null;
+    // Try multiple reliable download APIs
+    const downloaders = [
+      {
+        name: 'giftedtech',
+        url: (vu) => `https://api.giftedtech.my.id/api/download/ytmp3?url=${encodeURIComponent(vu)}`,
+        extract: (d) => d?.result?.download_url || d?.result?.url || d?.url || d?.download_url,
+      },
+      {
+        name: 'siputzx',
+        url: (vu) => `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(vu)}`,
+        extract: (d) => d?.url || d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
+      },
+    ];
 
-    for (const dl of DOWNLOADERS) {
+    let downloadUrl = null;
+    for (const dl of downloaders) {
       try {
-        const { data } = await axios.get(dl.url(videoUrl), { timeout: 15000 });
-        const rawUrl = dl.extract(data);
-        // Only accept URLs that look like audio files
-        if (rawUrl && (rawUrl.endsWith('.mp3') || rawUrl.endsWith('.m4a'))) {
-          downloadUrl = rawUrl;
+        const { data } = await axios.get(dl.url(videoUrl), { timeout: 20000 });
+        const extracted = dl.extract(data);
+        if (extracted && (extracted.endsWith('.mp3') || extracted.endsWith('.m4a') || extracted.includes('audio'))) {
+          downloadUrl = extracted;
           break;
         }
-      } catch (e) {
-        // This specific service failed, try the next one
-      }
+      } catch (e) {}
     }
 
     if (!downloadUrl) {
       return reply('❌ Failed to get a playable audio file. The download services may be down. Please try again in a few minutes.');
     }
 
-    // 4. Send the audio as a playable document
+    // Send as audio first, fallback to document
     try {
       await sock.sendMessage(from, {
         audio: { url: downloadUrl },
         mimetype: 'audio/mp4',
         ptt: false,
       }, { quoted: msg });
-    } catch (err) {
-      // If sending as audio fails, try sending as a generic document
+    } catch (e) {
       try {
         await sock.sendMessage(from, {
           document: { url: downloadUrl },
           fileName: videoTitle ? `${videoTitle}.mp3` : 'song.mp3',
           mimetype: 'audio/mpeg',
         }, { quoted: msg });
-      } catch (docErr) {
-        return reply(`❌ Failed to send the audio file. Please try again.`);
+      } catch (err) {
+        reply('❌ Failed to send the audio file.');
       }
     }
   }
