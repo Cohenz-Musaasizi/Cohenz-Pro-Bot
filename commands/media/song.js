@@ -1,26 +1,20 @@
-// commands/media/song.js – reliable song download (FlashDL API)
+// commands/media/song.js – Crash-proof song download
 const yts = require('yt-search');
 const axios = require('axios');
-const ytdl = require('@distube/ytdl-core');
-const ffmpeg = require('fluent-ffmpeg');
-const { PassThrough } = require('stream');
 
 // Primary download APIs (tried in order)
 const DOWNLOADERS = [
-  {
-    name: 'flashdl',
-    url: (vu) => `https://api.flashdl.one/api/youtube/download?url=${encodeURIComponent(vu)}&type=mp3`,
-    extract: (d) => d?.data?.downloadUrl || d?.downloadUrl || d?.url,
-  },
   {
     name: 'siputzx',
     url: (vu) => `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(vu)}`,
     extract: (d) => d?.url || d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
   },
+  {
+    name: 'yupra',
+    url: (vu) => `https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(vu)}`,
+    extract: (d) => d?.data?.download_url || d?.data?.url || d?.data?.audio_url,
+  },
 ];
-
-const looksLikeAudio = (url) =>
-  url && (url.endsWith('.mp3') || url.endsWith('.m4a') || url.includes('audio/'));
 
 module.exports = {
   name: 'song',
@@ -37,97 +31,70 @@ module.exports = {
     let videoUrl = query;
     let videoTitle = '';
 
-    if (!/^https?:\/\//i.test(query)) {
-      try {
+    // 1. Search YouTube if necessary
+    try {
+      if (!/^https?:\/\//i.test(query)) {
         const search = await yts(query);
-        if (!search.videos.length) throw new Error('No results');
+        if (!search.videos.length) throw new Error('No results found on YouTube');
         const vid = search.videos[0];
         videoUrl = vid.url;
         videoTitle = vid.title;
         await reply(`🔍 Found: *${videoTitle}*`);
-      } catch (err) {
-        return reply('❌ Could not find any video.');
+      }
+    } catch (err) {
+      return reply('❌ Could not find any video. Try different keywords.');
+    }
+
+    // 2. Send thumbnail (non-critical, wrapped safely)
+    try {
+      const vidId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1];
+      if (vidId && videoTitle) {
+        await sock.sendMessage(from, {
+          image: { url: `https://img.youtube.com/vi/${vidId}/hqdefault.jpg` },
+          caption: `🎵 *${videoTitle}*`,
+        }, { quoted: msg });
+      }
+    } catch (e) {}
+
+    // 3. Download the audio
+    let downloadUrl = null;
+
+    for (const dl of DOWNLOADERS) {
+      try {
+        const { data } = await axios.get(dl.url(videoUrl), { timeout: 15000 });
+        const rawUrl = dl.extract(data);
+        // Only accept URLs that look like audio files
+        if (rawUrl && (rawUrl.endsWith('.mp3') || rawUrl.endsWith('.m4a'))) {
+          downloadUrl = rawUrl;
+          break;
+        }
+      } catch (e) {
+        // This specific service failed, try the next one
       }
     }
 
+    if (!downloadUrl) {
+      return reply('❌ Failed to get a playable audio file. The download services may be down. Please try again in a few minutes.');
+    }
+
+    // 4. Send the audio as a playable document
     try {
-      await sock.sendPresenceUpdate('composing', from);
-
-      // 1. Send thumbnail (if available)
-      const vidId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1];
-      if (vidId && videoTitle) {
-        try {
-          await sock.sendMessage(from, {
-            image: { url: `https://img.youtube.com/vi/${vidId}/hqdefault.jpg` },
-            caption: `🎵 *${videoTitle}*`,
-          }, { quoted: msg });
-        } catch (e) {}
-      }
-
-      let audioBuffer = null;
-
-      // 2. Try download APIs first
-      for (const dl of DOWNLOADERS) {
-        try {
-          const { data } = await axios.get(dl.url(videoUrl), { timeout: 15000 });
-          const rawUrl = dl.extract(data);
-          if (rawUrl && looksLikeAudio(rawUrl)) {
-            const resp = await axios.get(rawUrl, { responseType: 'arraybuffer', timeout: 30000 });
-            audioBuffer = Buffer.from(resp.data);
-            break;
-          }
-        } catch (e) { /* try next API */ }
-      }
-
-      // 3. Fallback to ytdl-core + FFmpeg (aac) if all APIs failed
-      if (!audioBuffer) {
-        const audioStream = ytdl(videoUrl, {
-          quality: 'highestaudio',
-          filter: 'audioonly',
-          highWaterMark: 1 << 25,
-        });
-
-        const ffmpegProcess = ffmpeg(audioStream)
-          .audioCodec('aac')
-          .format('ipod')
-          .audioBitrate('128k')
-          .audioChannels(2)
-          .on('error', (err) => console.error('FFmpeg error:', err));
-
-        const chunks = [];
-        const outputStream = new PassThrough();
-        outputStream.on('data', (chunk) => chunks.push(chunk));
-        ffmpegProcess.pipe(outputStream);
-
-        audioBuffer = await new Promise((resolve, reject) => {
-          const timer = setTimeout(() => {
-            ffmpegProcess.kill();
-            reject(new Error('Conversion timed out'));
-          }, 60000);
-          ffmpegProcess.on('end', () => {
-            clearTimeout(timer);
-            resolve(Buffer.concat(chunks));
-          });
-          ffmpegProcess.on('error', (err) => {
-            clearTimeout(timer);
-            reject(err);
-          });
-        });
-      }
-
-      const safeName = videoTitle ? videoTitle.replace(/[/\\?%*:|"<>]/g, '').trim() + '.m4a' : 'song.m4a';
-
       await sock.sendMessage(from, {
-        document: audioBuffer,
-        fileName: safeName,
+        audio: { url: downloadUrl },
         mimetype: 'audio/mp4',
+        ptt: false,
       }, { quoted: msg });
-
     } catch (err) {
-      console.error('song error:', err);
-      await reply(`❌ Failed: ${err.message}`);
-    } finally {
-      await sock.sendPresenceUpdate('paused', from);
+      // If sending as audio fails, try sending as a generic document
+      try {
+        await sock.sendMessage(from, {
+          document: { url: downloadUrl },
+          fileName: videoTitle ? `${videoTitle}.mp3` : 'song.mp3',
+          mimetype: 'audio/mpeg',
+        }, { quoted: msg });
+      } catch (docErr) {
+        return reply(`❌ Failed to send the audio file. Please try again.`);
+      }
     }
   }
 };
