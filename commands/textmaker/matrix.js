@@ -10,7 +10,7 @@ module.exports = {
   aliases: [],
   category: 'textmaker',
   description: 'Create arena text effect',
-  usage: '.arena <text>',
+  usage: '.matrix <text>',
   
   async execute(sock, msg, args) {
     try {
