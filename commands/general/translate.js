@@ -11,16 +11,17 @@ module.exports = {
   description: 'Translate text to another language',
   usage: '.translate <lang code> <text>',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     try {
       if (args.length < 2) {
-        return extra.reply('❌ Usage: .translate <lang> <text>\n\nExample: .translate es Hello world');
+        return reply('❌ Usage: .translate <lang> <text>\n\nExample: .translate es Hello world');
       }
       
       const targetLang = args[0];
       const text = args.slice(1).join(' ');
       
-      await extra.reply('🔄 Translating...');
+      await reply('🔄 Translating...');
       
       const result = await APIs.translate(text, targetLang);
       
@@ -29,10 +30,10 @@ module.exports = {
       replyText += `🔤 Translated: ${result.translation || result}\n`;
       replyText += `🌍 Language: ${targetLang.toUpperCase()}`;
       
-      await extra.reply(replyText);
+      await reply(replyText);
       
     } catch (error) {
-      await extra.reply(`❌ Translation failed!\n\nSupported codes: en, es, fr, de, it, pt, ru, ja, ko, zh\n\nError: ${error.message}`);
+      await reply(`❌ Translation failed!\n\nSupported codes: en, es, fr, de, it, pt, ru, ja, ko, zh\n\nError: ${error.message}`);
     }
   }
 };
