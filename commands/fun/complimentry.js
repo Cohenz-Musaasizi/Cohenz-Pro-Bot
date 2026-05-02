@@ -4,11 +4,13 @@
 
 module.exports = {
     name: 'compliment',
-    aliases: ['praise', 'compliment'],
+    aliases: ['praise'],
     category: 'fun',
-    desc: 'Get a random compliment',
-    usage: 'compliment [@user]',
-    execute: async (sock, msg, args) => {
+    description: 'Get a random compliment',
+    usage: '.compliment [@user]',
+    
+    async execute(sock, msg, args, context) {
+      const { from, reply } = context;
       try {
         const compliments = [
           "You're an awesome friend! 💙",
@@ -37,22 +39,19 @@ module.exports = {
         const randomCompliment = compliments[Math.floor(Math.random() * compliments.length)];
         
         if (mentioned.length > 0) {
-          await sock.sendMessage(msg.key.remoteJid, {
+          await sock.sendMessage(from, {
             text: `${randomCompliment}`,
             mentions: mentioned
           }, { quoted: msg });
         } else {
-          await sock.sendMessage(msg.key.remoteJid, {
+          await sock.sendMessage(from, {
             text: `${randomCompliment}`
           }, { quoted: msg });
         }
         
       } catch (error) {
         console.error('Compliment Error:', error);
-        await sock.sendMessage(msg.key.remoteJid, {
-          text: `❌ Error: ${error.message}`
-        }, { quoted: msg });
+        reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
