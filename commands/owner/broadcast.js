@@ -10,10 +10,11 @@ module.exports = {
     usage: '.broadcast <message>',
     ownerOnly: true,
     
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+      const { reply } = context;
       try {
         if (args.length === 0) {
-          return extra.reply('❌ Usage: .broadcast <message>\n\nExample: .broadcast Hello everyone!');
+          return reply('❌ Usage: .broadcast <message>\n\nExample: .broadcast Hello everyone!');
         }
         
         const message = args.join(' ');
@@ -35,11 +36,10 @@ module.exports = {
           }
         }
         
-        await extra.reply(`✅ Broadcast complete!\n\n✅ Success: ${success}\n❌ Failed: ${failed}`);
+        reply(`✅ Broadcast complete!\n\n✅ Success: ${success}\n❌ Failed: ${failed}`);
         
       } catch (error) {
-        await extra.reply(`❌ Error: ${error.message}`);
+        reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
