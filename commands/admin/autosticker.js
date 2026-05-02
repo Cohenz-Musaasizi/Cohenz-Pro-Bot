@@ -14,12 +14,13 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: false,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       if (!args[0]) {
-        const settings = database.getGroupSettings(extra.from);
+        const settings = database.getGroupSettings(from);
         const status = settings.autosticker ? 'ON' : 'OFF';
-        return extra.reply(
+        return reply(
           `📌 *AutoSticker Status*\n\n` +
           `Status: *${status}*\n\n` +
           `When enabled, all images and videos sent in this group will automatically be converted to stickers.\n\n` +
@@ -32,26 +33,25 @@ module.exports = {
       const opt = args[0].toLowerCase();
       
       if (opt === 'on') {
-        if (database.getGroupSettings(extra.from).autosticker) {
-          return extra.reply('*AutoSticker is already ON*');
+        if (database.getGroupSettings(from).autosticker) {
+          return reply('*AutoSticker is already ON*');
         }
-        database.updateGroupSettings(extra.from, { autosticker: true });
-        return extra.reply('✅ *AutoSticker has been turned ON*\n\nAll images and videos will now automatically be converted to stickers!');
+        database.updateGroupSettings(from, { autosticker: true });
+        return reply('✅ *AutoSticker has been turned ON*\n\nAll images and videos will now automatically be converted to stickers!');
       }
       
       if (opt === 'off') {
-        if (!database.getGroupSettings(extra.from).autosticker) {
-          return extra.reply('*AutoSticker is already OFF*');
+        if (!database.getGroupSettings(from).autosticker) {
+          return reply('*AutoSticker is already OFF*');
         }
-        database.updateGroupSettings(extra.from, { autosticker: false });
-        return extra.reply('❌ *AutoSticker has been turned OFF*');
+        database.updateGroupSettings(from, { autosticker: false });
+        return reply('❌ *AutoSticker has been turned OFF*');
       }
       
-      return extra.reply('❌ Invalid option!\nUsage: .autosticker <on/off>');
+      return reply('❌ Invalid option!\nUsage: .autosticker <on/off>');
     } catch (error) {
       console.error('[AutoSticker Command Error]:', error);
-      return extra.reply('❌ Error updating autosticker setting.');
+      return reply('❌ Error updating autosticker setting.');
     }
   }
 };
-
