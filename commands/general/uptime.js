@@ -44,29 +44,26 @@ module.exports = {
   description: 'Show how long the bot has been running',
   usage: '.uptime',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     try {
-      // Get process uptime in seconds
       const uptimeSeconds = process.uptime();
       const uptime = formatUptime(uptimeSeconds);
       
-// Get bot info
-const botName = config.botName || 'Bot';
-const botVersion = 'V1.0.2';
+      const botName = config.botName || 'Bot';
+      const botVersion = 'V1.0.2';
       
-      // Build response message
       let message = `╭━━『 *Bot Uptime* 』━━╮\n\n`;
-    message += `🤖 *Bot Name:* ${botName}\n`;
-    message += `🧬 *Bot Version:* ${botVersion}\n`;
+      message += `🤖 *Bot Name:* ${botName}\n`;
+      message += `🧬 *Bot Version:* ${botVersion}\n`;
       message += `⏱️ *Uptime:* ${uptime}\n`;
       message += `\n╰━━━━━━━━━━━━━━━╯`;
       
-      await extra.reply(message);
+      await reply(message);
       
     } catch (error) {
       console.error('Error in uptime command:', error);
-      await extra.reply('❌ An error occurred while fetching uptime information. Please try again later.');
+      await reply('❌ An error occurred while fetching uptime information. Please try again later.');
     }
   }
 };
-
