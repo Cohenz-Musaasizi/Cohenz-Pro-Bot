@@ -12,10 +12,9 @@ module.exports = {
     usage: '.owner',
     ownerOnly: false,
 
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+        const { from, reply } = context;
         try {
-            const chatId = extra.from;
-
             // Owner numbers array -> convert each to a vCard
             const ownerNames = Array.isArray(config.ownerName) ? config.ownerName : [config.ownerName];
             const vCards = config.ownerNumber.map((num, index) => {
@@ -33,18 +32,18 @@ END:VCARD
 
             const displayName = ownerNames[0] || config.ownerName || 'Bot Owner';
 
-            await sock.sendMessage(chatId, {
+            await sock.sendMessage(from, {
                 contacts: {
                     displayName: displayName,
                     contacts: vCards
                 }
             });
 
-            await extra.reply('👑 Here is the contact of my *Owner*.');
+            await reply('👑 Here is the contact of my *Owner*.');
 
         } catch (error) {
             console.error('Owner command error:', error);
-            await extra.reply(`❌ Error: ${error.message}`);
+            await reply(`❌ Error: ${error.message}`);
         }
     }
 };
