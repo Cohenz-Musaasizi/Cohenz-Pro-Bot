@@ -3,6 +3,7 @@
  */
 
 const axios = require('axios');
+const config = require('../config');   // needed for Gemini API key
 
 const api = axios.create({
   timeout: 30000,
@@ -11,7 +12,30 @@ const api = axios.create({
   }
 });
 
-// API Endpoints
+// ── Gemini memory & slang setup ───────────────────────
+const chatHistory = new Map();
+const MAX_HISTORY = 20;
+
+function preloadSlangKnowledge(chatId) {
+  if (!chatHistory.has(chatId)) {
+    chatHistory.set(chatId, []);
+  }
+  const history = chatHistory.get(chatId);
+  if (history.length === 0) {
+    history.push(
+      {
+        role: "user",
+        parts: [{ text: "Remember these common abbreviations: xcul=school, wyd=what you doing, hmu=hit me up, lol=laugh out loud, brb=be right back, tbh=to be honest, idk=I don't know, afaik=as far as I know, imo=in my opinion, irl=in real life, smh=shaking my head, tfw=that feeling when, fyi=for your information, luh=love, fr=for real, ong=on God, nah=no, yh=yes, u=you, r=are, k=okay, ikr=i know right, wbu=what about you, wdym=what do you mean, tm=tomorrow, l8r=later, sry=sorry, pls=please, thx=thanks, omg=oh my god, ttyl=talk to you later, gn=good night, gm=good morning, cya=see you, wth=what the hell, btw=by the way, idc=i don't care, ily=i love you, wya=where you at" }]
+      },
+      {
+        role: "model",
+        parts: [{ text: "Got it! I'll remember these abbreviations for our conversation." }]
+      }
+    );
+  }
+}
+
+// ── API Endpoints ─────────────────────────────────────
 const APIs = {
   // Image Generation
   generateImage: async (prompt) => {
@@ -37,7 +61,62 @@ const APIs = {
       throw new Error('Failed to get AI response');
     }
   },
-  
+
+  // 🆕 Gemini – with full memory and slang knowledge
+  gemini: async (prompt, chatId = 'default') => {
+    const apiKey = config.apiKeys.gemini || process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Gemini API key not set');
+
+    preloadSlangKnowledge(chatId);
+
+    if (!chatHistory.has(chatId)) chatHistory.set(chatId, []);
+    const history = chatHistory.get(chatId);
+
+    const system = {
+      role: "user",
+      parts: [{ text: "You are a helpful WhatsApp bot. Interpret slang, abbreviations, and informal language naturally. If you encounter an unfamiliar abbreviation, try to guess its meaning from context. Always be friendly and conversational." }]
+    };
+
+    const contents = [
+      system,
+      ...history,
+      { role: "user", parts: [{ text: prompt }] }
+    ];
+
+    const model = 'models/gemini-2.0-flash';   // high free quota
+    const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+
+    try {
+      const response = await axios.post(url, {
+        contents: contents,
+        generationConfig: {
+          temperature: 0.9,
+          maxOutputTokens: 2048,
+          topP: 0.95,
+          topK: 40,
+        },
+      });
+
+      const replyText = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!replyText) throw new Error('No response from Gemini');
+
+      history.push(
+        { role: "user", parts: [{ text: prompt }] },
+        { role: "model", parts: [{ text: replyText }] }
+      );
+
+      while (history.length > MAX_HISTORY * 2) {
+        history.shift();
+      }
+
+      return replyText;
+
+    } catch (error) {
+      console.error('Gemini API raw error:', error.response?.data || error.message);
+      throw new Error('Failed to get response from Gemini');
+    }
+  },
+
   // YouTube Download
   ytDownload: async (url, type = 'audio') => {
     try {
@@ -460,7 +539,7 @@ const APIs = {
     }
   },
   
-  // Screenshot Website API
+  // Screenshot Website API (FIXED)
   screenshotWebsite: async (url) => {
     try {
       const apiUrl = `https://eliteprotech-apis.zone.id/ssweb?url=${encodeURIComponent(url)}`;
@@ -472,18 +551,18 @@ const APIs = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
-      
-      // Return the image buffer directly (API returns PNG binary)
+
+      // If the response is an image, return the buffer directly
       if (response.headers['content-type']?.includes('image')) {
         return Buffer.from(response.data);
       }
-      
-      // If API returns JSON with URL, try to parse it
+
+      // If it's JSON, try to extract a URL
       try {
         const data = JSON.parse(Buffer.from(response.data).toString());
         return data.url || data.data?.url || data.image || apiUrl;
       } catch (e) {
-        // If not JSON, assume it's image data and return buffer
+        // Not JSON, assume it's image data
         return Buffer.from(response.data);
       }
     } catch (error) {
@@ -491,7 +570,7 @@ const APIs = {
     }
   },
   
-  // Text to Speech API
+  // Text to Speech API (FIXED)
   textToSpeech: async (text) => {
     try {
       const apiUrl = `https://www.laurine.site/api/tts/tts-nova?text=${encodeURIComponent(text)}`;
@@ -502,32 +581,32 @@ const APIs = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
-      
+
       if (response.data) {
-        // Check if response.data is a string (direct URL)
+        // If it's a direct URL string
         if (typeof response.data === 'string' && (response.data.startsWith('http://') || response.data.startsWith('https://'))) {
           return response.data;
         }
-        
-        // Check nested data structure
+
+        // Check nested data
         if (response.data.data) {
-          const data = response.data.data;
-          if (data.URL) return data.URL;
-          if (data.url) return data.url;
-          if (data.MP3) return `https://ttsmp3.com/created_mp3_ai/${data.MP3}`;
-          if (data.mp3) return `https://ttsmp3.com/created_mp3_ai/${data.mp3}`;
+          const d = response.data.data;
+          if (d.URL) return d.URL;
+          if (d.url) return d.url;
+          if (d.MP3) return `https://ttsmp3.com/created_mp3_ai/${d.MP3}`;
+          if (d.mp3) return `https://ttsmp3.com/created_mp3_ai/${d.mp3}`;
         }
-        
+
         // Check top-level URL fields
         if (response.data.URL) return response.data.URL;
         if (response.data.url) return response.data.url;
         if (response.data.MP3) return `https://ttsmp3.com/created_mp3_ai/${response.data.MP3}`;
         if (response.data.mp3) return `https://ttsmp3.com/created_mp3_ai/${response.data.mp3}`;
       }
-      
+
       throw new Error('Invalid API response structure');
     } catch (error) {
-      throw new Error(`Failed to generate speech: ${error.message}`);
+      throw new Error('Failed to generate speech: ' + error.message);
     }
   }
 };
