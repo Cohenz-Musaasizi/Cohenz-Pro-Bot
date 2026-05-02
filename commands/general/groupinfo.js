@@ -10,10 +10,12 @@ module.exports = {
     usage: '.groupinfo',
     groupOnly: true,
     
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+      const { from, isGroup, groupMetadata, reply } = context;
       try {
-        const metadata = extra.groupMetadata;
+        if (!isGroup) return reply('❌ This command can only be used in a group.');
         
+        const metadata = groupMetadata;
         const admins = metadata.participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin');
         const members = metadata.participants.filter(p => !p.admin);
         
@@ -32,14 +34,13 @@ module.exports = {
           text += `${index + 1}. @${admin.id.split('@')[0]}\n`;
         });
         
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           text,
           mentions: admins.map(a => a.id)
         }, { quoted: msg });
         
       } catch (error) {
-        await extra.reply(`❌ Error: ${error.message}`);
+        await reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
