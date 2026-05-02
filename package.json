@@ -22,7 +22,7 @@
         "@bochilteam/scraper-tiktok": "^5.0.0",
         "@bochilteam/scraper-facebook": "^5.0.0",
         "@vitalets/google-translate-api": "^9.2.1",
-        "@whiskeysockets/baileys": "^7.0.0",
+        "@whiskeysockets/baileys": "^6.7.0",
         "ws": "^8.18.2",
         "axios": "^1.7.2",
         "canvas": "^3.2.1",
