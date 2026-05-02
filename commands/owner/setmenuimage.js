@@ -18,27 +18,26 @@ module.exports = {
   groupOnly: false,
   botAdminOnly: false,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const chatId = extra.from;
-      
       // Check if message is a reply
       const ctx = msg.message?.extendedTextMessage?.contextInfo;
       if (!ctx?.quotedMessage) {
-        return extra.reply('📷 Please reply to an *image* or *sticker* to set it as the menu image.');
+        return reply('📷 Please reply to an *image* or *sticker* to set it as the menu image.');
       }
       
       const quotedMsg = ctx.quotedMessage;
       const imageMsg = quotedMsg.imageMessage || quotedMsg.stickerMessage;
       
       if (!imageMsg) {
-        return extra.reply('❌ The replied message must be an *image* or *sticker*.');
+        return reply('❌ The replied message must be an *image* or *sticker*.');
       }
       
       // Download the media
       const targetMessage = {
         key: {
-          remoteJid: chatId,
+          remoteJid: from,
           id: ctx.stanzaId,
           participant: ctx.participant,
         },
@@ -53,7 +52,7 @@ module.exports = {
       );
       
       if (!mediaBuffer) {
-        return extra.reply('❌ Failed to download the image. Please try again.');
+        return reply('❌ Failed to download the image. Please try again.');
       }
       
       // Convert to JPEG if it's a sticker (webp)
@@ -86,13 +85,11 @@ module.exports = {
       // Write new image
       fs.writeFileSync(imagePath, finalBuffer);
       
-      await extra.reply('✅ Menu image has been updated successfully!');
+      await reply('✅ Menu image has been updated successfully!');
       
     } catch (error) {
       console.error('SetMenuImage command error:', error);
-      await extra.reply(`❌ Failed to set menu image: ${error.message}`);
+      await reply(`❌ Failed to set menu image: ${error.message}`);
     }
   }
 };
-
-
