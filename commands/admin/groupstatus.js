@@ -20,13 +20,12 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: true,
 
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply, isGroup } = context;
     try {
-      const from = extra.from;
-
       // Only inside groups
-      if (!extra.isGroup) {
-        return extra.reply('👥 This command can only be used in groups.');
+      if (!isGroup) {
+        return reply('👥 This command can only be used in groups.');
       }
 
       const caption = (args.join(' ') || '').trim();
@@ -37,7 +36,7 @@ module.exports = {
       // CASE 1: No quoted message -> treat as TEXT group status
       if (!hasQuoted) {
         if (!caption) {
-          return extra.reply(
+          return reply(
             '📝 *Group Status Usage*\n\n' +
             '• Reply to image/video/audio with:\n' +
             '  `.groupstatus [optional caption]`\n' +
@@ -47,17 +46,17 @@ module.exports = {
           );
         }
 
-        await extra.reply('⏳ Posting text group status...');
+        await reply('⏳ Posting text group status...');
 
         try {
           await groupStatus(sock, from, {
             text: caption,
             backgroundColor: PURPLE_COLOR,
           });
-          return extra.reply('✅ Text group status posted!');
+          return reply('✅ Text group status posted!');
         } catch (e) {
           console.error('groupstatus text error:', e);
-          return extra.reply('❌ Failed to post text group status: ' + (e.message || e));
+          return reply('❌ Failed to post text group status: ' + (e.message || e));
         }
       }
 
@@ -84,60 +83,60 @@ module.exports = {
 
       // IMAGE (also handles stickers)
       if (/image|sticker/i.test(mtype)) {
-        await extra.reply('⏳ Posting image group status...');
+        await reply('⏳ Posting image group status...');
         let buf;
         try {
           buf = await downloadBuf();
         } catch {
-          return extra.reply('❌ Failed to download image');
+          return reply('❌ Failed to download image');
         }
-        if (!buf) return extra.reply('❌ Could not download image');
+        if (!buf) return reply('❌ Could not download image');
 
         try {
           await groupStatus(sock, from, {
             image: buf,
             caption: caption || '',
           });
-          return extra.reply('✅ Image group status posted!');
+          return reply('✅ Image group status posted!');
         } catch (e) {
           console.error('groupstatus image error:', e);
-          return extra.reply('❌ Failed to post image group status: ' + (e.message || e));
+          return reply('❌ Failed to post image group status: ' + (e.message || e));
         }
       }
 
       // VIDEO
       if (/video/i.test(mtype)) {
-        await extra.reply('⏳ Posting video group status...');
+        await reply('⏳ Posting video group status...');
         let buf;
         try {
           buf = await downloadBuf();
         } catch {
-          return extra.reply('❌ Failed to download video');
+          return reply('❌ Failed to download video');
         }
-        if (!buf) return extra.reply('❌ Could not download video');
+        if (!buf) return reply('❌ Could not download video');
 
         try {
           await groupStatus(sock, from, {
             video: buf,
             caption: caption || '',
           });
-          return extra.reply('✅ Video group status posted!');
+          return reply('✅ Video group status posted!');
         } catch (e) {
           console.error('groupstatus video error:', e);
-          return extra.reply('❌ Failed to post video group status: ' + (e.message || e));
+          return reply('❌ Failed to post video group status: ' + (e.message || e));
         }
       }
 
       // AUDIO (voice-style group status)
       if (/audio/i.test(mtype)) {
-        await extra.reply('⏳ Posting audio group status...');
+        await reply('⏳ Posting audio group status...');
         let buf;
         try {
           buf = await downloadBuf();
         } catch {
-          return extra.reply('❌ Failed to download audio');
+          return reply('❌ Failed to download audio');
         }
-        if (!buf) return extra.reply('❌ Could not download audio');
+        if (!buf) return reply('❌ Could not download audio');
 
         let vn;
         try {
@@ -160,17 +159,17 @@ module.exports = {
             ptt: true,
             waveform,
           });
-          return extra.reply('✅ Audio group status posted!');
+          return reply('✅ Audio group status posted!');
         } catch (e) {
           console.error('groupstatus audio error:', e);
-          return extra.reply('❌ Failed to post audio group status: ' + (e.message || e));
+          return reply('❌ Failed to post audio group status: ' + (e.message || e));
         }
       }
 
-      return extra.reply('❌ Unsupported media type. Reply to an image, video, or audio.');
+      return reply('❌ Unsupported media type. Reply to an image, video, or audio.');
     } catch (e) {
       console.error('groupstatus command error (outer):', e);
-      return extra.reply('❌ Error: ' + (e.message || e));
+      return reply('❌ Error: ' + (e.message || e));
     }
   },
 };
@@ -280,4 +279,4 @@ function generateWaveform(buffer, bars = 64) {
       .pipe()
       .on('data', (c) => chunks.push(c));
   });
-}
+                       }
