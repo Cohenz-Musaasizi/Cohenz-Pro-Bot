@@ -12,29 +12,28 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const count = parseInt(args[0]);
       if (!count || count < 1 || count > 100) {
-        return extra.reply('❌ Please enter a valid number (1-100).');
+        return reply('❌ Please enter a valid number (1-100).');
       }
 
-      const jid = extra.from;
+      const jid = from;
       const { store } = require('../../index');
       
-      // Check if message is a reply
       const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       const quotedParticipant = msg.message?.extendedTextMessage?.contextInfo?.participant;
 
       const msgs = store.messages[jid];
       if (!msgs) {
-        return extra.reply('❌ No stored messages found.');
+        return reply('❌ No stored messages found.');
       }
 
       let messagesToDelete = [];
 
       if (quotedMsg && quotedParticipant) {
-        // Mode: Delete specific user's messages
         messagesToDelete = Object.values(msgs)
           .filter(m => {
             const sender = m.key.participant || m.key.remoteJid;
@@ -43,7 +42,6 @@ module.exports = {
           .sort((a, b) => (b.messageTimestamp || 0) - (a.messageTimestamp || 0))
           .slice(0, count);
       } else {
-        // Mode: Delete last N messages from chat
         messagesToDelete = Object.values(msgs)
           .sort((a, b) => (b.messageTimestamp || 0) - (a.messageTimestamp || 0))
           .slice(0, count);
@@ -54,7 +52,6 @@ module.exports = {
         try {
           await sock.sendMessage(jid, { delete: m.key });
           deleted++;
-          // Small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 300));
         } catch (err) {
           console.error('[clean] delete error:', err.message);
@@ -63,7 +60,7 @@ module.exports = {
       
     } catch (e) {
       console.error('[clean cmd] error:', e);
-      extra.reply('❌ Failed to clean messages.');
+      reply('❌ Failed to clean messages.');
     }
   }
 };
