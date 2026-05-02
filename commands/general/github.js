@@ -13,19 +13,15 @@ module.exports = {
     usage: '.github',
     ownerOnly: false,
 
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+        const { from, reply } = context;
         try {
-            const chatId = extra.from;
-            
-            // GitHub repository URL
             const repoUrl = 'https://github.com/mruniquehacker/KnightBot-Mini';
             const apiUrl = 'https://api.github.com/repos/mruniquehacker/KnightBot-Mini';
-            
-            // Send loading message
-            const loadingMsg = await extra.reply('🔍 Fetching GitHub repository information...');
-            
+
+            const loadingMsg = await reply('🔍 Fetching GitHub repository information...');
+
             try {
-                // Fetch repository data from GitHub API
                 const response = await axios.get(apiUrl, {
                     headers: {
                         'User-Agent': 'KnightBot-Mini'
@@ -33,8 +29,7 @@ module.exports = {
                 });
                 
                 const repo = response.data;
-                
-                // Format the response with proper styling
+
                 let message = `╭━━『 *GitHub Repository* 』━━╮\n\n`;
                 message += `🤖 *Bot Name:* ${config.botName}\n`;
                 message += `🔗 *Repository:* ${repo.name}\n`;
@@ -55,15 +50,13 @@ module.exports = {
                 
                 message += `╰━━━━━━━━━━━━━━━╯\n\n`;
                 message += `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${config.botName}*`;
-                
-                // Edit the loading message with the actual data
-                await sock.sendMessage(chatId, {
+
+                await sock.sendMessage(from, {
                     text: message,
                     edit: loadingMsg.key
                 });
-                
+
             } catch (apiError) {
-                // Fallback message if API fails
                 console.error('GitHub API Error:', apiError.message);
                 
                 let fallbackMessage = `╭━━『 *GitHub Repository* 』━━╮\n\n`;
@@ -75,16 +68,16 @@ module.exports = {
                 fallbackMessage += `Please visit the repository directly for latest stats.\n\n`;
                 fallbackMessage += `╰━━━━━━━━━━━━━━━╯\n\n`;
                 fallbackMessage += `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${config.botName}*`;
-                
-                await sock.sendMessage(chatId, {
+
+                await sock.sendMessage(from, {
                     text: fallbackMessage,
                     edit: loadingMsg.key
                 });
             }
-            
+
         } catch (error) {
             console.error('GitHub command error:', error);
-            await extra.reply(`❌ Error: ${error.message}`);
+            await reply(`❌ Error: ${error.message}`);
         }
     }
 };
