@@ -9,17 +9,18 @@ module.exports = {
     description: 'Calculate math expressions',
     usage: '.calc <expression>',
     
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+      const { reply } = context;
       try {
         if (args.length === 0) {
-          return extra.reply('❌ Usage: .calc <expression>\n\nExample: .calc 5 + 3 * 2');
+          return reply('❌ Usage: .calc <expression>\n\nExample: .calc 5 + 3 * 2');
         }
         
         const expression = args.join(' ');
         
         // Basic safety check
         if (!/^[0-9+\-*/(). ]+$/.test(expression)) {
-          return extra.reply('❌ Invalid expression! Only numbers and operators (+, -, *, /, parentheses) allowed.');
+          return reply('❌ Invalid expression! Only numbers and operators (+, -, *, /, parentheses) allowed.');
         }
         
         try {
@@ -29,14 +30,13 @@ module.exports = {
           text += `📝 Expression: ${expression}\n`;
           text += `✅ Result: ${result}`;
           
-          await extra.reply(text);
+          await reply(text);
         } catch (evalError) {
-          await extra.reply('❌ Invalid mathematical expression!');
+          await reply('❌ Invalid mathematical expression!');
         }
         
       } catch (error) {
-        await extra.reply(`❌ Error: ${error.message}`);
+        reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
