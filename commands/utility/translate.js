@@ -11,12 +11,11 @@ module.exports = {
   description: 'Translate text to different languages',
   usage: '.translate <text> <lang> or .translate <lang> (reply to message)',
   
-  async execute(sock, msg, args) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const chatId = msg.key.remoteJid;
-      
       // Show typing indicator
-      await sock.sendPresenceUpdate('composing', chatId);
+      await sock.sendPresenceUpdate('composing', from);
       
       let textToTranslate = '';
       let lang = '';
@@ -37,8 +36,7 @@ module.exports = {
       } else {
         // Parse command arguments for direct message
         if (args.length < 2) {
-          return await sock.sendMessage(chatId, {
-            text: `*TRANSLATOR*\n\n` +
+          return reply(`*TRANSLATOR*\n\n` +
             `Usage:\n` +
             `1. Reply to a message with: .translate <lang> or .trt <lang>\n` +
             `2. Or type: .translate <text> <lang> or .trt <text> <lang>\n\n` +
@@ -49,7 +47,7 @@ module.exports = {
             `fr - French, es - Spanish, de - German, it - Italian\n` +
             `pt - Portuguese, ru - Russian, ja - Japanese, ko - Korean\n` +
             `zh - Chinese, ar - Arabic, hi - Hindi`
-          }, { quoted: msg });
+          );
         }
         
         lang = args.pop(); // Get language code
@@ -57,15 +55,11 @@ module.exports = {
       }
       
       if (!textToTranslate) {
-        return await sock.sendMessage(chatId, { 
-          text: '❌ No text found to translate. Please provide text or reply to a message.' 
-        }, { quoted: msg });
+        return reply('❌ No text found to translate. Please provide text or reply to a message.');
       }
       
       if (!lang) {
-        return await sock.sendMessage(chatId, { 
-          text: '❌ Please specify a language code.\n\nExample: .translate hello fr' 
-        }, { quoted: msg });
+        return reply('❌ Please specify a language code.\n\nExample: .translate hello fr');
       }
       
       // Try multiple translation APIs in sequence
@@ -115,21 +109,17 @@ module.exports = {
       }
       
       if (!translatedText) {
-        return await sock.sendMessage(chatId, { 
-          text: '❌ Failed to translate text. Please try again later.' 
-        }, { quoted: msg });
+        return reply('❌ Failed to translate text. Please try again later.');
       }
       
       // Send translation
-      await sock.sendMessage(chatId, {
+      await sock.sendMessage(from, {
         text: `${translatedText}`
       }, { quoted: msg });
       
     } catch (error) {
       console.error('❌ Error in translate command:', error);
-      await sock.sendMessage(msg.key.remoteJid, { 
-        text: '❌ Failed to translate text. Please try again later.' 
-      }, { quoted: msg });
+      reply('❌ Failed to translate text. Please try again later.');
     }
   }
 };
