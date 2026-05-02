@@ -16,7 +16,8 @@ module.exports = {
   usage: '.list',
   category: 'general',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const prefix = config.prefix;
       const commands = loadCommands();
@@ -55,7 +56,7 @@ module.exports = {
       
       
       // Send message with buttons using gifted-btns
-      await sendButtons(sock, extra.from, {
+      await sendButtons(sock, from, {
         title: '',
         text: menu,
         footer: `> *Powered by ${config.botName}*`,
@@ -86,8 +87,7 @@ module.exports = {
       
     } catch (err) {
       console.error('list.js error:', err);
-      await extra.reply('❌ Failed to load commands list.');
+      await reply('❌ Failed to load commands list.');
     }
   }
 };
-
