@@ -14,7 +14,8 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       let target;
       const ctx = msg.message?.extendedTextMessage?.contextInfo;
@@ -25,28 +26,27 @@ module.exports = {
       } else if (ctx?.participant && ctx.stanzaId && ctx.quotedMessage) {
         target = ctx.participant;
       } else {
-        return extra.reply('❌ Please mention or reply to the user to reset warnings!\n\nExample: .resetwarn @user');
+        return reply('❌ Please mention or reply to the user to reset warnings!\n\nExample: .resetwarn @user');
       }
       
       // Get current warnings before clearing
-      const currentWarnings = database.getWarnings(extra.from, target);
+      const currentWarnings = database.getWarnings(from, target);
       
       if (currentWarnings.count === 0) {
-        return extra.reply(`✅ @${target.split('@')[0]} has no warnings to reset.`, { mentions: [target] });
+        return reply(`✅ @${target.split('@')[0]} has no warnings to reset.`, { mentions: [target] });
       }
       
       // Clear all warnings
-      database.clearWarnings(extra.from, target);
+      database.clearWarnings(from, target);
       
-      await sock.sendMessage(extra.from, {
+      await sock.sendMessage(from, {
         text: `✅ *Warnings Reset*\n\n👤 User: @${target.split('@')[0]}\n⚠️ Previous warnings: ${currentWarnings.count}\n\nAll warnings have been cleared.`,
         mentions: [target]
       }, { quoted: msg });
       
     } catch (error) {
       console.error('ResetWarn command error:', error);
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
-
