@@ -3,9 +3,6 @@
  */
 
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-const { getTempDir, deleteTempFile } = require('../../utils/tempManager');
 
 const BASE = 'https://api.princetechn.com/api/anime/hneko';
 const API_KEY = 'prince';
@@ -14,9 +11,11 @@ module.exports = {
   name: 'hneko',
   aliases: ['hnekonsfw'],
   category: 'anime',
-  desc: 'Get random hneko NSFW anime images',
-  usage: 'hneko',
-  execute: async (sock, msg, args, extra) => {
+  description: 'Get random hneko NSFW anime images',
+  usage: '.hneko',
+
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const url = `${BASE}?apikey=${API_KEY}`;
       const response = await axios.get(url, {
@@ -32,80 +31,43 @@ module.exports = {
       }
       
       const imageUrl = response.data.result;
-      
       if (!imageUrl || typeof imageUrl !== 'string') {
-        throw new Error('Invalid image URL in API response');
+        throw new Error('Invalid image URL');
       }
       
+      // Download the image directly as buffer
       const imageResponse = await axios.get(imageUrl, {
         responseType: 'arraybuffer',
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Accept': 'image/*'
-        },
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*' },
         timeout: 30000
       });
       
       const imageBuffer = Buffer.from(imageResponse.data);
-      
       if (!imageBuffer || imageBuffer.length === 0) {
         throw new Error('Empty image response');
       }
       
-      const maxImageSize = 5 * 1024 * 1024;
+      const maxImageSize = 5 * 1024 * 1024; // 5 MB
       if (imageBuffer.length > maxImageSize) {
         throw new Error(`Image too large: ${(imageBuffer.length / 1024 / 1024).toFixed(2)}MB (max 5MB)`);
       }
       
-      const contentType = imageResponse.headers['content-type'] || '';
-      let extension = 'jpg';
-      if (contentType.includes('png')) {
-        extension = 'png';
-      } else if (contentType.includes('jpeg')) {
-        extension = 'jpg';
-      } else if (imageUrl.match(/\.(png|jpg|jpeg)$/i)) {
-        const match = imageUrl.match(/\.(png|jpg|jpeg)$/i);
-        extension = match[1].toLowerCase();
-      }
-      
-      const tempDir = getTempDir();
-      const timestamp = Date.now();
-      const tempImagePath = path.join(tempDir, `hneko_${timestamp}.${extension}`);
-      
-      let finalBuffer = null;
-      
-      try {
-        fs.writeFileSync(tempImagePath, imageBuffer);
-        finalBuffer = fs.readFileSync(tempImagePath);
-        
-        if (!finalBuffer || finalBuffer.length === 0) {
-          throw new Error('Failed to read image from temp file');
-        }
-        
-        await sock.sendMessage(extra.from, {
-          image: finalBuffer
-        }, { quoted: msg });
-        
-      } finally {
-        try {
-          deleteTempFile(tempImagePath);
-        } catch (cleanupError) {
-        }
-      }
+      await sock.sendMessage(from, {
+        image: imageBuffer
+      }, { quoted: msg });
       
     } catch (error) {
       console.error('Error in hneko command:', error);
       
       if (error.response?.status === 404) {
-        await extra.reply('❌ Image not found. Please try again.');
+        return reply('❌ Image not found. Please try again.');
       } else if (error.response?.status === 429) {
-        await extra.reply('❌ Rate limit exceeded. Please try again later.');
+        return reply('❌ Rate limit exceeded. Please try again later.');
       } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        await extra.reply('❌ Request timed out. Please try again.');
+        return reply('❌ Request timed out. Please try again.');
       } else {
-        await extra.reply(`❌ Failed to fetch hneko image: ${error.message}`);
+        return reply(`❌ Failed to fetch hneko image: ${error.message}`);
       }
     }
   }
 };
-
