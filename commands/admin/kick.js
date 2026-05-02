@@ -17,9 +17,10 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const chatId = extra.from;
+      const chatId = from;
       const ctx = msg.message?.extendedTextMessage?.contextInfo;
       const mentioned = ctx?.mentionedJid || [];
       let usersToKick = [];
@@ -31,7 +32,7 @@ module.exports = {
       }
       
       if (usersToKick.length === 0) {
-        return extra.reply('👤 Mention or reply to the user you want to kick.');
+        return reply('👤 Mention or reply to the user you want to kick.');
       }
       
       const botId = sock.user?.id || '';
@@ -93,7 +94,7 @@ module.exports = {
       });
       
       if (isTryingToKickBot) {
-        await extra.reply('❌ Cannot kick myself!');
+        await reply('❌ Cannot kick myself!');
         return;
       }
       
@@ -102,10 +103,10 @@ module.exports = {
       const usernames = usersToKick.map((jid) => `@${jid.split('@')[0]}`);
       const text = `✅ ${usernames.join(', ')} has been kicked successfully.`;
       
-      await sock.sendMessage(extra.from, { text, mentions: usersToKick }, { quoted: msg });
+      await sock.sendMessage(from, { text, mentions: usersToKick }, { quoted: msg });
     } catch (error) {
       console.error('Kick command error:', error);
-      await extra.reply('❌ Failed to kick user(s). Make sure I am admin.');
+      await reply('❌ Failed to kick user(s). Make sure I am admin.');
     }
   },
 };
