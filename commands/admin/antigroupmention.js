@@ -13,14 +13,15 @@ module.exports = {
   groupOnly: true,
   adminOnly: true,
   botAdminNeeded: true,
-  
-  async execute(sock, msg, args, extra) {
+
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       if (!args[0]) {
-        const settings = database.getGroupSettings(extra.from);
+        const settings = database.getGroupSettings(from);
         const status = settings.antigroupmention ? 'ON' : 'OFF';
         const action = settings.antigroupmentionAction || 'delete';
-        return extra.reply(
+        return reply(
           `📌 *Antigroupmention Status*\n\n` +
           `Status: *${status}*\n` +
           `Action: *${action}*\n\n` +
@@ -31,50 +32,50 @@ module.exports = {
           `  .antigroupmention get`
         );
       }
-      
+
       const opt = args[0].toLowerCase();
-      
+
       if (opt === 'on') {
-        if (database.getGroupSettings(extra.from).antigroupmention) {
-          return extra.reply('*Antigroupmention is already on*');
+        if (database.getGroupSettings(from).antigroupmention) {
+          return reply('*Antigroupmention is already on*');
         }
-        database.updateGroupSettings(extra.from, { antigroupmention: true });
-        return extra.reply('*Antigroupmention has been turned ON*');
+        database.updateGroupSettings(from, { antigroupmention: true });
+        return reply('*Antigroupmention has been turned ON*');
       }
-      
+
       if (opt === 'off') {
-        database.updateGroupSettings(extra.from, { antigroupmention: false });
-        return extra.reply('*Antigroupmention has been turned OFF*');
+        database.updateGroupSettings(from, { antigroupmention: false });
+        return reply('*Antigroupmention has been turned OFF*');
       }
-      
+
       if (opt === 'set') {
         if (args.length < 2) {
-          return extra.reply('*Please specify an action: .antigroupmention set delete | kick*');
+          return reply('*Please specify an action: .antigroupmention set delete | kick*');
         }
-        
+
         const setAction = args[1].toLowerCase();
         if (!['delete', 'kick'].includes(setAction)) {
-          return extra.reply('*Invalid action. Choose delete or kick.*');
+          return reply('*Invalid action. Choose delete or kick.*');
         }
-        
-        database.updateGroupSettings(extra.from, { 
+
+        database.updateGroupSettings(from, {
           antigroupmentionAction: setAction,
           antigroupmention: true // Auto-enable when setting action
         });
-        return extra.reply(`*Antigroupmention action set to ${setAction}*`);
+        return reply(`*Antigroupmention action set to ${setAction}*`);
       }
-      
+
       if (opt === 'get') {
-        const settings = database.getGroupSettings(extra.from);
+        const settings = database.getGroupSettings(from);
         const status = settings.antigroupmention ? 'ON' : 'OFF';
         const action = settings.antigroupmentionAction || 'delete';
-        return extra.reply(`*Antigroupmention Configuration:*\nStatus: ${status}\nAction: ${action}`);
+        return reply(`*Antigroupmention Configuration:*\nStatus: ${status}\nAction: ${action}`);
       }
-      
-      return extra.reply('*Use .antigroupmention for usage.*');
-      
+
+      return reply('*Use .antigroupmention for usage.*');
+
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
