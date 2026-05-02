@@ -10,17 +10,16 @@ module.exports = {
     usage: '.groupstats',
     groupOnly: true,
 
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+        const { from, reply } = context;
         try {
-            const from = extra.from;
             const stats = getStats(from);
 
             if (!stats)
-                return extra.reply('📊 No activity recorded today.');
+                return reply('📊 No activity recorded today.');
 
             const { total, users } = stats;
 
-            // top members
             const sortedUsers = Object.entries(users)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 5);
@@ -47,7 +46,7 @@ Type .myactivity to see your stats.
 
         } catch (err) {
             console.error('[groupstats cmd] error:', err);
-            extra.reply('❌ Error loading stats.');
+            reply('❌ Error loading stats.');
         }
     }
 };
