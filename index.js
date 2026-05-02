@@ -1,6 +1,16 @@
 /**
  * WhatsApp MD Bot - Main Entry Point (Session-ID only)
  */
+// ── Hugging Face keep‑alive server ─────────────────────
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 7860;
+
+app.get('/', (req, res) => res.send('Bot is running'));
+app.get('/health', (req, res) => res.send('OK'));
+
+app.listen(PORT, () => console.log(`🌐 Keep‑alive server on port ${PORT}`));
+// ────────────────────────────────────────────────────────
 process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
