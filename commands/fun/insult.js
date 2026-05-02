@@ -1,21 +1,22 @@
 // commands/fun/insult.js
 module.exports = {
   name: 'insult',
-  aliases: ['insultme','burn'],
+  aliases: ['insultme', 'burn'],
   category: 'fun',
   description: 'Give a silly insult to a user. Reply or mention to target someone.',
   usage: '.insult (reply or @user)',
-  
-  async execute(sock, msg, args, extra) {
+
+  async execute(sock, msg, args, context) {
+    const { from, sender, reply } = context;
     try {
       const ctx = msg.message?.extendedTextMessage?.contextInfo || {};
       const mentioned = ctx.mentionedJid || [];
       let targetId = null;
       if (mentioned.length) targetId = mentioned[0];
       else if (ctx.participant) targetId = ctx.participant;
-      else targetId = extra.sender;
+      else targetId = sender;
 
-      const targetTag = `@${(targetId || extra.sender).split('@')[0]}`;
+      const targetTag = `@${targetId.split('@')[0]}`;
 
       const insults = [
         "You're as useful as a white crayon.",
@@ -26,10 +27,10 @@ module.exports = {
       ];
 
       const line = insults[Math.floor(Math.random() * insults.length)];
-      await sock.sendMessage(extra.from, { text: `${line}`, mentions: [targetId] }, { quoted: msg });
+      await sock.sendMessage(from, { text: `${line}`, mentions: [targetId] }, { quoted: msg });
     } catch (error) {
       console.error('[insult] ERROR:', error);
-      await extra.reply('❌ Something went wrong.');
+      reply('❌ Something went wrong.');
     }
   }
 };
