@@ -11,11 +11,10 @@ module.exports = {
   description: 'Reveal view-once messages (images/videos/audio)',
   usage: '.viewonce (reply to view-once message)',
   
-  async execute(sock, msg, args) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const chatId = msg.key.remoteJid;
-
-      // Try to get contextInfo from different message types (reply can be from text, image, video, etc.)
+      // Try to get contextInfo from different message types
       const ctx = msg.message?.extendedTextMessage?.contextInfo
         || msg.message?.imageMessage?.contextInfo
         || msg.message?.videoMessage?.contextInfo
@@ -23,16 +22,11 @@ module.exports = {
         || msg.message?.listResponseMessage?.contextInfo;
 
       if (!ctx?.quotedMessage || !ctx?.stanzaId) {
-        return await sock.sendMessage(
-          chatId,
-          { text: '🗑️ Reply to a *view-once* message to reveal it.' },
-          { quoted: msg }
-        );
+        return await reply('🗑️ Reply to a *view-once* message to reveal it.');
       }
 
       const quotedMsg = ctx.quotedMessage;
 
-      // Check various patterns used for view-once messages
       const hasViewOnce =
         !!quotedMsg.viewOnceMessageV2 ||
         !!quotedMsg.viewOnceMessageV2Extension ||
@@ -43,32 +37,21 @@ module.exports = {
         !!quotedMsg?.audioMessage?.viewOnce;
 
       if (!hasViewOnce) {
-        return await sock.sendMessage(
-          chatId,
-          { text: '❌ This is not a view-once message!' },
-          { quoted: msg }
-        );
+        return await reply('❌ This is not a view-once message!');
       }
 
       let actualMsg = null;
       let mtype = null;
 
-      // Newer Baileys: viewOnceMessageV2Extension
       if (quotedMsg.viewOnceMessageV2Extension?.message) {
         actualMsg = quotedMsg.viewOnceMessageV2Extension.message;
         mtype = Object.keys(actualMsg)[0];
-
-      // Classic Baileys: viewOnceMessageV2
       } else if (quotedMsg.viewOnceMessageV2?.message) {
         actualMsg = quotedMsg.viewOnceMessageV2.message;
         mtype = Object.keys(actualMsg)[0];
-
-      // Older: viewOnceMessage
       } else if (quotedMsg.viewOnceMessage?.message) {
         actualMsg = quotedMsg.viewOnceMessage.message;
         mtype = Object.keys(actualMsg)[0];
-
-      // Direct message with viewOnce flag on media
       } else if (quotedMsg.imageMessage?.viewOnce) {
         actualMsg = { imageMessage: quotedMsg.imageMessage };
         mtype = 'imageMessage';
@@ -81,11 +64,7 @@ module.exports = {
       }
 
       if (!actualMsg || !mtype) {
-        return await sock.sendMessage(
-          chatId,
-          { text: '❌ Unsupported view-once message type.' },
-          { quoted: msg }
-        );
+        return await reply('❌ Unsupported view-once message type.');
       }
 
       const downloadType =
@@ -109,7 +88,7 @@ module.exports = {
 
       if (/video/.test(mtype)) {
         await sock.sendMessage(
-          chatId,
+          from,
           {
             video: buffer,
             caption,
@@ -119,7 +98,7 @@ module.exports = {
         );
       } else if (/image/.test(mtype)) {
         await sock.sendMessage(
-          chatId,
+          from,
           {
             image: buffer,
             caption,
@@ -129,7 +108,7 @@ module.exports = {
         );
       } else if (/audio/.test(mtype)) {
         await sock.sendMessage(
-          chatId,
+          from,
           {
             audio: buffer,
             ptt: true,
@@ -140,14 +119,9 @@ module.exports = {
       }
     } catch (error) {
       console.error('Error in viewonce command:', error);
-      await sock.sendMessage(
-        msg.key.remoteJid,
-        {
-          text:
-            '❌ Error processing view-once message: ' +
-            (error.message || 'Unknown error')
-        },
-        { quoted: msg }
+      await reply(
+        '❌ Error processing view-once message: ' +
+        (error.message || 'Unknown error')
       );
     }
   }
