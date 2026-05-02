@@ -1,5 +1,5 @@
 /**
- * Song Downloader - Download audio from YouTube
+ * Song Downloader - Download audio from YouTube (sends as document)
  */
 
 const yts = require('yt-search');
@@ -226,12 +226,14 @@ module.exports = {
         }
       }
 
-      // Send buffer as MP3
+      // ──────── SEND AS DOCUMENT (preserves file name) ────────
+      const safeFileName = `${(audioData.title || video.title || 'song').replace(/[^\w\s-]/g, '')}.${finalExtension}`;
+      
       await sock.sendMessage(chatId, {
-        audio: finalBuffer,
+        document: finalBuffer,
+        fileName: safeFileName,
         mimetype: finalMimetype,
-        fileName: `${(audioData.title || video.title || 'song').replace(/[^\w\s-]/g, '')}.${finalExtension}`,
-        ptt: false
+        caption: `🎵 ${audioData.title || video.title || 'Song'}`
       }, { quoted: msg });
 
       // Cleanup: Delete temp files created during conversion
