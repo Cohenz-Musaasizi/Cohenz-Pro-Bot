@@ -23,8 +23,8 @@ module.exports = {
   usage: '.sticker (reply to media)',
   category: 'general',
   
-  async execute(sock, msg, args, extra) {
-    const chatId = extra.from;
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     const messageToQuote = msg;
     let targetMessage = msg;
     
@@ -32,7 +32,7 @@ module.exports = {
     if (ctxInfo?.quotedMessage) {
       targetMessage = {
         key: {
-          remoteJid: chatId,
+          remoteJid: from,
           id: ctxInfo.stanzaId,
           participant: ctxInfo.participant,
         },
@@ -46,7 +46,7 @@ module.exports = {
       targetMessage.message?.documentMessage;
     
     if (!mediaMessage) {
-      return extra.reply('📎 Reply to an *image* / *video* with .sticker or send media with .sticker as caption.');
+      return reply('📎 Reply to an *image* / *video* with .sticker or send media with .sticker as caption.');
     }
     
     const tempDir = getTempDir();
@@ -64,13 +64,13 @@ module.exports = {
       );
       
       if (!mediaBuffer) {
-        await extra.reply('❌ Failed to download media. Please try again.');
+        await reply('❌ Failed to download media. Please try again.');
         return;
       }
       
       // Check file size
       if (mediaBuffer.length > MAX_FILE_SIZE) {
-        await extra.reply(`❌ File too large: ${(mediaBuffer.length / 1024 / 1024).toFixed(2)}MB (max: ${MAX_FILE_SIZE / 1024 / 1024}MB)`);
+        await reply(`❌ File too large: ${(mediaBuffer.length / 1024 / 1024).toFixed(2)}MB (max: ${MAX_FILE_SIZE / 1024 / 1024}MB)`);
         return;
       }
       
@@ -131,11 +131,11 @@ module.exports = {
       img.exif = exif;
       const finalBuffer = await img.save(null);
       
-      await sock.sendMessage(extra.from, { sticker: finalBuffer }, { quoted: msg });
+      await sock.sendMessage(from, { sticker: finalBuffer }, { quoted: msg });
       
     } catch (error) {
       console.error('Sticker command error:', error);
-      await extra.reply('❌ Failed to create sticker. Make sure the media is valid.');
+      await reply('❌ Failed to create sticker. Make sure the media is valid.');
     } finally {
       // Always cleanup temp files
       tempFiles.forEach(file => deleteTempFile(file));
