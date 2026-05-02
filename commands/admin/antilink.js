@@ -13,14 +13,15 @@ module.exports = {
   groupOnly: true,
   adminOnly: true,
   botAdminNeeded: true,
-  
-  async execute(sock, msg, args, extra) {
+
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       if (!args[0]) {
-        const settings = database.getGroupSettings(extra.from);
+        const settings = database.getGroupSettings(from);
         const status = settings.antilink ? 'ON' : 'OFF';
         const action = settings.antilinkAction || 'delete';
-        return extra.reply(
+        return reply(
           `🔗 *Antilink Status*\n\n` +
           `Status: *${status}*\n` +
           `Action: *${action}*\n\n` +
@@ -31,50 +32,50 @@ module.exports = {
           `  .antilink get`
         );
       }
-      
+
       const opt = args[0].toLowerCase();
-      
+
       if (opt === 'on') {
-        if (database.getGroupSettings(extra.from).antilink) {
-          return extra.reply('*Antilink is already on*');
+        if (database.getGroupSettings(from).antilink) {
+          return reply('*Antilink is already on*');
         }
-        database.updateGroupSettings(extra.from, { antilink: true });
-        return extra.reply('*Antilink has been turned ON*');
+        database.updateGroupSettings(from, { antilink: true });
+        return reply('*Antilink has been turned ON*');
       }
-      
+
       if (opt === 'off') {
-        database.updateGroupSettings(extra.from, { antilink: false });
-        return extra.reply('*Antilink has been turned OFF*');
+        database.updateGroupSettings(from, { antilink: false });
+        return reply('*Antilink has been turned OFF*');
       }
-      
+
       if (opt === 'set') {
         if (args.length < 2) {
-          return extra.reply('*Please specify an action: .antilink set delete | kick*');
+          return reply('*Please specify an action: .antilink set delete | kick*');
         }
-        
+
         const setAction = args[1].toLowerCase();
         if (!['delete', 'kick'].includes(setAction)) {
-          return extra.reply('*Invalid action. Choose delete or kick.*');
+          return reply('*Invalid action. Choose delete or kick.*');
         }
-        
-        database.updateGroupSettings(extra.from, { 
+
+        database.updateGroupSettings(from, {
           antilinkAction: setAction,
           antilink: true // Auto-enable when setting action
         });
-        return extra.reply(`*Antilink action set to ${setAction}*`);
+        return reply(`*Antilink action set to ${setAction}*`);
       }
-      
+
       if (opt === 'get') {
-        const settings = database.getGroupSettings(extra.from);
+        const settings = database.getGroupSettings(from);
         const status = settings.antilink ? 'ON' : 'OFF';
         const action = settings.antilinkAction || 'delete';
-        return extra.reply(`*Antilink Configuration:*\nStatus: ${status}\nAction: ${action}`);
+        return reply(`*Antilink Configuration:*\nStatus: ${status}\nAction: ${action}`);
       }
-      
-      return extra.reply('*Use .antilink for usage.*');
-      
+
+      return reply('*Use .antilink for usage.*');
+
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
