@@ -12,19 +12,20 @@ module.exports = {
   description: 'Convert sticker to image (PNG)',
   usage: '.simage (reply to sticker)',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const notStickerMessage = '📎 Reply to a sticker to convert it to image!';
       
       // Check if message is a reply
       const ctxInfo = msg.message?.extendedTextMessage?.contextInfo;
       if (!ctxInfo?.quotedMessage) {
-        return await extra.reply(notStickerMessage);
+        return await reply(notStickerMessage);
       }
       
       const targetMessage = {
         key: {
-          remoteJid: extra.from,
+          remoteJid: from,
           id: ctxInfo.stanzaId,
           participant: ctxInfo.participant,
         },
@@ -34,7 +35,7 @@ module.exports = {
       // Check if quoted message is a sticker
       const stickerMessage = targetMessage.message?.stickerMessage;
       if (!stickerMessage) {
-        return await extra.reply(notStickerMessage);
+        return await reply(notStickerMessage);
       }
       
       // Download sticker
@@ -46,7 +47,7 @@ module.exports = {
       );
       
       if (!stickerBuffer) {
-        return await extra.reply('❌ Failed to download sticker. Please try again.');
+        return await reply('❌ Failed to download sticker. Please try again.');
       }
       
       // Check if sticker is animated
@@ -68,7 +69,7 @@ module.exports = {
         }
         
         // Send as MP4 video
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           video: mp4Buffer,
           mimetype: 'video/mp4',
           gifPlayback: true
@@ -78,15 +79,14 @@ module.exports = {
         const imageBuffer = await webp2png(stickerBuffer);
         
         // Send as image (no caption)
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           image: imageBuffer
         }, { quoted: msg });
       }
       
     } catch (error) {
       console.error('Error in simage command:', error);
-      await extra.reply(`❌ Failed to convert sticker to image.\n\nError: ${error.message}`);
+      await reply(`❌ Failed to convert sticker to image.\n\nError: ${error.message}`);
     }
   }
 };
-
