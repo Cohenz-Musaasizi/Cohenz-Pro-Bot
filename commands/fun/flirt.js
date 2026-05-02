@@ -8,11 +8,12 @@ module.exports = {
     name: 'flirt',
     aliases: ['pickup', 'pickupline'],
     category: 'fun',
-    desc: 'Get a random flirty pickup line',
-    usage: 'flirt [@user]',
-    execute: async (sock, msg, args, extra) => {
+    description: 'Get a random flirty pickup line',
+    usage: '.flirt [@user]',
+
+    async execute(sock, msg, args, context) {
+      const { from, reply } = context;
       try {
-        // Fetch flirt message from API
         const response = await axios.get('https://api.shizo.top/quote/flirt?apikey=shizo');
         
         if (!response.data || !response.data.status || !response.data.result) {
@@ -20,22 +21,20 @@ module.exports = {
         }
         
         const flirtText = response.data.result;
-        
         const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         
         if (mentioned.length > 0) {
-          await sock.sendMessage(extra.from, {
+          await sock.sendMessage(from, {
             text: flirtText,
             mentions: mentioned
           }, { quoted: msg });
         } else {
-          await extra.reply(flirtText);
+          await reply(flirtText);
         }
         
       } catch (error) {
         console.error('Flirt Error:', error);
-        await extra.reply(`❌ Error: ${error.message}`);
+        reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
