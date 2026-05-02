@@ -13,15 +13,13 @@ module.exports = {
   description: 'Download video from YouTube',
   usage: '.video <video name or YouTube link>',
 
-  async execute(sock, msg, args) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const text = args.join(' ').trim();
-      const chatId = msg.key.remoteJid;
 
       if (!text) {
-        return await sock.sendMessage(chatId, {
-          text: '❌ What video do you want to download? Example: .video Fik Fameica new song'
-        }, { quoted: msg });
+        return reply('❌ What video do you want to download? Example: .video Fik Fameica new song');
       }
 
       let videoUrl = '';
@@ -35,9 +33,7 @@ module.exports = {
         // 2. Otherwise search YouTube and pick the best match
         const search = await yts(text);
         if (!search || !search.videos.length) {
-          return await sock.sendMessage(chatId, {
-            text: '❌ No videos found for that name.'
-          }, { quoted: msg });
+          return reply('❌ No videos found for that name.');
         }
         const vid = search.videos[0];
         videoUrl = vid.url;
@@ -48,7 +44,7 @@ module.exports = {
       // 3. Send thumbnail immediately (if available)
       if (videoThumbnail) {
         try {
-          await sock.sendMessage(chatId, {
+          await sock.sendMessage(from, {
             image: { url: videoThumbnail },
             caption: `🎬 Downloading: *${videoTitle || 'your video'}*`
           }, { quoted: msg });
@@ -75,13 +71,11 @@ module.exports = {
       }
 
       if (!videoData || !videoData.download) {
-        return await sock.sendMessage(chatId, {
-          text: '❌ All download sources failed. The video may be unavailable or blocked.'
-        }, { quoted: msg });
+        return reply('❌ All download sources failed. The video may be unavailable or blocked.');
       }
 
       // 5. Send the video
-      await sock.sendMessage(chatId, {
+      await sock.sendMessage(from, {
         video: { url: videoData.download },
         mimetype: 'video/mp4',
         fileName: `${(videoData.title || videoTitle || 'video').replace(/[^\w\s-]/g, '')}.mp4`,
@@ -90,9 +84,7 @@ module.exports = {
 
     } catch (error) {
       console.error('[VIDEO] Error:', error?.message || error);
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: '❌ Download failed: ' + (error?.message || 'Unknown error')
-      }, { quoted: msg });
+      reply('❌ Download failed: ' + (error?.message || 'Unknown error'));
     }
   }
 };
