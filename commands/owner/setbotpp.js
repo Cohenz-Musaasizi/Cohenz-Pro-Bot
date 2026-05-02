@@ -14,12 +14,13 @@ module.exports = {
   usage: '.setbotpp (reply to image or sticker)',
   ownerOnly: true,
 
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     try {
       // Check if message is a reply
       const quotedMessage = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       if (!quotedMessage) {
-        return extra.reply('⚠️ Please reply to an image or sticker with the .setbotpp command!');
+        return reply('⚠️ Please reply to an image or sticker with the .setbotpp command!');
       }
 
       // Check if quoted message contains an image or sticker
@@ -27,7 +28,7 @@ module.exports = {
       const stickerMessage = quotedMessage.stickerMessage;
       
       if (!imageMessage && !stickerMessage) {
-        return extra.reply('❌ The replied message must contain an image or sticker!');
+        return reply('❌ The replied message must contain an image or sticker!');
       }
       
       // Use whichever message type is available
@@ -47,7 +48,7 @@ module.exports = {
 
         // Check file size
         if (buffer.length > MAX_FILE_SIZE) {
-          return extra.reply(`❌ File too large: ${(buffer.length / 1024 / 1024).toFixed(2)}MB (max: ${MAX_FILE_SIZE / 1024 / 1024}MB)`);
+          return reply(`❌ File too large: ${(buffer.length / 1024 / 1024).toFixed(2)}MB (max: ${MAX_FILE_SIZE / 1024 / 1024}MB)`);
         }
         
         // Save the image
@@ -56,17 +57,17 @@ module.exports = {
         // Set the profile picture
         await sock.updateProfilePicture(sock.user.id.split(':')[0] + '@s.whatsapp.net', { url: imagePath });
 
-        await extra.reply('✅ Successfully updated bot profile picture!');
+        await reply('✅ Successfully updated bot profile picture!');
       } catch (error) {
         console.error('setbotpp error:', error);
-        extra.reply('❌ Failed to update profile picture!');
+        reply('❌ Failed to update profile picture!');
       } finally {
         // Always cleanup temp file
         deleteTempFile(imagePath);
       }
     } catch (error) {
       console.error('setbotpp error:', error);
-      extra.reply('❌ Failed to update profile picture!');
+      reply('❌ Failed to update profile picture!');
     }
   }
 };
