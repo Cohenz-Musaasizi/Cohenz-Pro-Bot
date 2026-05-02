@@ -12,14 +12,14 @@ module.exports = {
     adminOnly: true,
     botAdminNeeded: true,
     
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+      const { from, reply } = context;
       try {
-        await sock.groupSettingUpdate(extra.from, 'announcement');
-        await extra.reply('🔒 Group has been closed!\n\nOnly admins can send messages now.');
+        await sock.groupSettingUpdate(from, 'announcement');
+        await reply('🔒 Group has been closed!\n\nOnly admins can send messages now.');
         
       } catch (error) {
-        await extra.reply(`❌ Error: ${error.message}`);
+        await reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
