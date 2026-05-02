@@ -14,7 +14,8 @@ module.exports = {
   usage: '.setbotname <new name> or reply to a message with .setbotname',
   ownerOnly: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     try {
       let newBotName = '';
       
@@ -35,7 +36,7 @@ module.exports = {
       
       // Validate
       if (!newBotName) {
-        return extra.reply(
+        return reply(
           `📝 *Set Bot Name*\n\n` +
           `Current bot name: *${config.botName}*\n\n` +
           `Usage:\n` +
@@ -45,7 +46,7 @@ module.exports = {
       }
       
       if (newBotName.length > 50) {
-        return extra.reply('❌ Bot name must be 50 characters or less!');
+        return reply('❌ Bot name must be 50 characters or less!');
       }
       
       // Update runtime config
@@ -66,12 +67,11 @@ module.exports = {
       // Reload config module cache
       delete require.cache[require.resolve('../../config')];
       
-      await extra.reply(`✅ Bot name changed to: *${newBotName}*\n\nThe new name will be used in menus and other places.`);
+      await reply(`✅ Bot name changed to: *${newBotName}*\n\nThe new name will be used in menus and other places.`);
       
     } catch (error) {
       console.error('Setbotname command error:', error);
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
-
