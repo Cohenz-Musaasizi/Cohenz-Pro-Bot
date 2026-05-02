@@ -14,7 +14,8 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       let target;
       const ctx = msg.message?.extendedTextMessage?.contextInfo;
@@ -25,33 +26,33 @@ module.exports = {
       } else if (ctx?.participant && ctx.stanzaId && ctx.quotedMessage) {
         target = ctx.participant;
       } else {
-        return extra.reply('❌ Please mention or reply to the user to promote!\n\nExample: .promote @user');
+        return reply('❌ Please mention or reply to the user to promote!\n\nExample: .promote @user');
       }
       
       // Fetch FRESH group metadata to avoid stale cache
-      const freshMetadata = await sock.groupMetadata(extra.from);
+      const freshMetadata = await sock.groupMetadata(from);
       
       // Use findParticipant for LID-aware matching with fresh metadata
       const foundParticipant = findParticipant(freshMetadata.participants, target);
       
       if (!foundParticipant) {
-        return extra.reply('❌ User not found in group!');
+        return reply('❌ User not found in group!');
       }
       
       // Check if already admin using fresh data
       if (foundParticipant.admin === 'admin' || foundParticipant.admin === 'superadmin') {
-        return extra.reply('❌ This user is already an admin!');
+        return reply('❌ This user is already an admin!');
       }
       
-      await sock.groupParticipantsUpdate(extra.from, [target], 'promote');
+      await sock.groupParticipantsUpdate(from, [target], 'promote');
       
-      await sock.sendMessage(extra.from, {
+      await sock.sendMessage(from, {
         text: `✅ @${target.split('@')[0]} is now an admin!`,
         mentions: [target]
       }, { quoted: msg });
       
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
