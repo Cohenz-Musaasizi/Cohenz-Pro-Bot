@@ -8,36 +8,35 @@ module.exports = {
   name: 'welcome',
   aliases: ['welcomeon', 'welcomeoff'],
   category: 'admin',
-  desc: 'Enable/disable welcome messages',
-  usage: 'welcome on/off',
+  description: 'Enable/disable welcome messages',
+  usage: '.welcome on/off',
   groupOnly: true,
   adminOnly: true,
   botAdminNeeded: true,
-  execute: async (sock, msg, args) => {
+
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const groupId = msg.key.remoteJid;
       const action = args[0]?.toLowerCase();
-      
+
       if (!action || !['on', 'off'].includes(action)) {
-        const groupSettings = db.getGroupSettings(groupId);
+        const groupSettings = db.getGroupSettings(from);
         const status = groupSettings.welcome ? '✅ Enabled' : '❌ Disabled';
-        return await sock.sendMessage(groupId, {
-          text: `👋 *Welcome Messages*\n\nStatus: ${status}\nMessage: ${groupSettings.welcomeMessage}\n\nUsage: .welcome on/off\n\nTo customize: .setwelcome <message>`
-        }, { quoted: msg });
+        return reply(
+          `👋 *Welcome Messages*\n\nStatus: ${status}\nMessage: ${groupSettings.welcomeMessage}\n\nUsage: .welcome on/off\n\nTo customize: .setwelcome <message>`
+        );
       }
-      
+
       const enable = action === 'on';
-      db.updateGroupSettings(groupId, { welcome: enable });
-      
-      await sock.sendMessage(groupId, {
-        text: `✅ Welcome messages ${enable ? 'enabled' : 'disabled'}!${enable ? '\n\nNew members will now receive welcome messages.' : ''}`
-      }, { quoted: msg });
-      
+      db.updateGroupSettings(from, { welcome: enable });
+
+      await reply(
+        `✅ Welcome messages ${enable ? 'enabled' : 'disabled'}!${enable ? '\n\nNew members will now receive welcome messages.' : ''}`
+      );
+
     } catch (error) {
       console.error('Welcome Error:', error);
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: `❌ Error: ${error.message}`
-      }, { quoted: msg });
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
