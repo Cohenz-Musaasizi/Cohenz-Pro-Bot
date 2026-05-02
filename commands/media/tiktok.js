@@ -17,38 +17,26 @@ module.exports = {
   description: 'Download TikTok videos',
   usage: '.tiktok <TikTok URL>',
   
-  async execute(sock, msg, args) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       // Check if message has already been processed
-      if (processedMessages.has(msg.key.id)) {
-        return;
-      }
-      
-      // Add message ID to processed set
+      if (processedMessages.has(msg.key.id)) return;
       processedMessages.add(msg.key.id);
-      
-      // Clean up old message IDs after 5 minutes
-      setTimeout(() => {
-        processedMessages.delete(msg.key.id);
-      }, 5 * 60 * 1000);
+      setTimeout(() => processedMessages.delete(msg.key.id), 5 * 60 * 1000);
       
       const text = msg.message?.conversation || 
                    msg.message?.extendedTextMessage?.text ||
                    args.join(' ');
       
       if (!text) {
-        return await sock.sendMessage(msg.key.remoteJid, { 
-          text: 'Please provide a TikTok link for the video.' 
-        }, { quoted: msg });
+        return reply('Please provide a TikTok link for the video.');
       }
       
       // Extract URL from command
       const url = text.split(' ').slice(1).join(' ').trim();
-      
       if (!url) {
-        return await sock.sendMessage(msg.key.remoteJid, { 
-          text: 'Please provide a TikTok link for the video.' 
-        }, { quoted: msg });
+        return reply('Please provide a TikTok link for the video.');
       }
       
       // Check for various TikTok URL formats
@@ -61,14 +49,11 @@ module.exports = {
       ];
       
       const isValidUrl = tiktokPatterns.some(pattern => pattern.test(url));
-      
       if (!isValidUrl) {
-        return await sock.sendMessage(msg.key.remoteJid, { 
-          text: 'That is not a valid TikTok link. Please provide a valid TikTok video link.' 
-        }, { quoted: msg });
+        return reply('That is not a valid TikTok link. Please provide a valid TikTok video link.');
       }
       
-      await sock.sendMessage(msg.key.remoteJid, {
+      await sock.sendMessage(from, {
         react: { text: '🔄', key: msg.key }
       });
       
@@ -97,13 +82,13 @@ module.exports = {
                 const isVideo = /\.(mp4|mov|avi|mkv|webm)$/i.test(mediaUrl) || media.type === 'video';
                 
                 if (isVideo) {
-                  await sock.sendMessage(msg.key.remoteJid, {
+                  await sock.sendMessage(from, {
                     video: { url: mediaUrl },
                     mimetype: 'video/mp4',
                     caption: `*DOWNLOADED BY ${config.botName.toUpperCase()}*`
                   }, { quoted: msg });
                 } else {
-                  await sock.sendMessage(msg.key.remoteJid, {
+                  await sock.sendMessage(from, {
                     image: { url: mediaUrl },
                     caption: `*DOWNLOADED BY ${config.botName.toUpperCase()}*`
                   }, { quoted: msg });
@@ -143,7 +128,7 @@ module.exports = {
             const botName = config.botName.toUpperCase();
             const caption = title ? `*DOWNLOADED BY ${botName}*\n\n📝 Title: ${title}` : `*DOWNLOADED BY ${botName}*`;
             
-            await sock.sendMessage(msg.key.remoteJid, {
+            await sock.sendMessage(from, {
               video: videoBuffer,
               mimetype: 'video/mp4',
               caption: caption
@@ -157,7 +142,7 @@ module.exports = {
               const botName = config.botName.toUpperCase();
               const caption = title ? `*DOWNLOADED BY ${botName}*\n\n📝 Title: ${title}` : `*DOWNLOADED BY ${botName}*`;
               
-              await sock.sendMessage(msg.key.remoteJid, {
+              await sock.sendMessage(from, {
                 video: { url: videoUrl },
                 mimetype: 'video/mp4',
                 caption: caption
@@ -170,21 +155,15 @@ module.exports = {
         }
         
         // If we reach here, no method worked
-        return await sock.sendMessage(msg.key.remoteJid, { 
-          text: '❌ Failed to download TikTok video. All download methods failed. Please try again with a different link.' 
-        }, { quoted: msg });
+        return reply('❌ Failed to download TikTok video. All download methods failed. Please try again with a different link.');
         
       } catch (error) {
         console.error('Error in TikTok download:', error);
-        await sock.sendMessage(msg.key.remoteJid, { 
-          text: 'Failed to download the TikTok video. Please try again with a different link.' 
-        }, { quoted: msg });
+        reply('Failed to download the TikTok video. Please try again with a different link.');
       }
     } catch (error) {
       console.error('Error in TikTok command:', error);
-      await sock.sendMessage(msg.key.remoteJid, { 
-        text: 'An error occurred while processing the request. Please try again later.' 
-      }, { quoted: msg });
+      reply('An error occurred while processing the request. Please try again later.');
     }
   }
 };
