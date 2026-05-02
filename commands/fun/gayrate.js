@@ -5,21 +5,22 @@ module.exports = {
   category: 'fun',
   description: 'Playful gay percentage. Reply or mention a user.',
   usage: '.gayrate (reply or @user)',
-  
-  async execute(sock, msg, args, extra) {
+
+  async execute(sock, msg, args, context) {
+    const { from, sender, reply } = context;
     try {
       const ctx = msg.message?.extendedTextMessage?.contextInfo || {};
       const mentioned = ctx.mentionedJid || [];
       let targetId = null;
       if (mentioned.length) targetId = mentioned[0];
       else if (ctx.participant) targetId = ctx.participant;
-      else targetId = extra.sender;
+      else targetId = sender;
 
-      const targetTag = `@${(targetId || extra.sender).split('@')[0]}`;
+      const targetTag = `@${targetId.split('@')[0]}`;
 
       // deterministic-ish but random: base on id to make repeatable so it's less spammy
-      const base = (targetId || extra.sender).toString().split('').reduce((s,c)=> s + c.charCodeAt(0), 0);
-      const percent = ((base % 101) + Math.floor(Math.random()*7)) % 101; // 0-100
+      const base = targetId.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+      const percent = ((base % 101) + Math.floor(Math.random() * 7)) % 101; // 0-100
 
       const messages = [
         `${targetTag} is ${percent}% fabulous 🌈`,
@@ -28,10 +29,10 @@ module.exports = {
       ];
 
       const out = messages[Math.floor(Math.random() * messages.length)];
-      await sock.sendMessage(extra.from, { text: out, mentions: [targetId] }, { quoted: msg });
+      await sock.sendMessage(from, { text: out, mentions: [targetId] }, { quoted: msg });
     } catch (error) {
       console.error('[gayrate] ERROR:', error);
-      await extra.reply('❌ Something went wrong.');
+      reply('❌ Something went wrong.');
     }
   }
 };
