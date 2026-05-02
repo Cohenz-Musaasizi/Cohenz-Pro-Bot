@@ -13,26 +13,26 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const ctx = msg.message?.extendedTextMessage?.contextInfo;
       
       if (!ctx?.stanzaId || !ctx?.participant) {
-        return extra.reply('🗑️ Reply to the message you want to delete.');
+        return reply('🗑️ Reply to the message you want to delete.');
       }
       
       const deleteKey = { 
-        remoteJid: extra.from, 
+        remoteJid: from, 
         id: ctx.stanzaId, 
         participant: ctx.participant 
       };
       
-      await sock.sendMessage(extra.from, { delete: deleteKey });
+      await sock.sendMessage(from, { delete: deleteKey });
       
     } catch (error) {
       console.error('Delete command error:', error);
-      await extra.reply('❌ Failed to delete message.');
+      await reply('❌ Failed to delete message.');
     }
   }
 };
-
