@@ -12,11 +12,12 @@ module.exports = {
     adminOnly: true,
     botAdminNeeded: true,
     
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+      const { from, groupMetadata, reply } = context;
       try {
         const message = args.join(' ') || 'Everyone!';
         
-        const participants = extra.groupMetadata.participants.map(p => p.id);
+        const participants = groupMetadata.participants.map(p => p.id);
         
         let text = `📢 *GROUP ANNOUNCEMENT*\n\n`;
         text += `${message}\n\n`;
@@ -26,14 +27,13 @@ module.exports = {
           text += `${index + 1}. @${participant.split('@')[0]}\n`;
         });
         
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           text,
           mentions: participants
         }, { quoted: msg });
         
       } catch (error) {
-        await extra.reply(`❌ Error: ${error.message}`);
+        await reply(`❌ Error: ${error.message}`);
       }
     }
   };
-  
