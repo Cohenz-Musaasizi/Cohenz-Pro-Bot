@@ -10,17 +10,17 @@ module.exports = {
   category: 'fun',
   description: 'Get random joke',
   usage: '.joke',
-  
-  async execute(sock, msg, args, extra) {
+
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     try {
       const joke = await APIs.getJoke();
       
       let text = `${joke.setup}\n\n${joke.punchline}`;
-      
-      await extra.reply(text);
+      await reply(text);
       
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      reply(`❌ Error: ${error.message}`);
     }
   }
 };
