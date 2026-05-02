@@ -11,15 +11,16 @@ module.exports = {
   name: 'imagine',
   aliases: ['magic', 'magicai', 'aiimage', 'generate'],
   category: 'ai',
-  desc: 'Generate AI art from text prompt',
-  usage: 'magicstudio <prompt>',
-  execute: async (sock, msg, args, extra) => {
+  description: 'Generate AI art from text prompt',
+  usage: '.imagine <prompt>',
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const prompt = args.join(' ').trim();
       
       if (!prompt) {
-        return await extra.reply(
-          'Usage: .magicstudio <prompt>\n\nExample: .magicstudio a cyberpunk city'
+        return reply(
+          'Usage: .imagine <prompt>\n\nExample: .imagine a cyberpunk city'
         );
       }
       
@@ -48,26 +49,24 @@ module.exports = {
       }
       
       // Send the generated image
-      await sock.sendMessage(extra.from, {
+      await sock.sendMessage(from, {
         image: imageBuffer
       }, { quoted: msg });
       
     } catch (error) {
       console.error('Error in magicstudio command:', error);
       
-      // Handle specific error cases
       if (error.response?.status === 429) {
-        await extra.reply('❌ Rate limit exceeded. Please try again later.');
+        await reply('❌ Rate limit exceeded. Please try again later.');
       } else if (error.response?.status === 400) {
-        await extra.reply('❌ Invalid prompt. Please try a different prompt.');
+        await reply('❌ Invalid prompt. Please try a different prompt.');
       } else if (error.response?.status === 500) {
-        await extra.reply('❌ Server error. Please try again later.');
+        await reply('❌ Server error. Please try again later.');
       } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        await extra.reply('❌ Request timed out. The image generation is taking too long. Please try again.');
+        await reply('❌ Request timed out. The image generation is taking too long. Please try again.');
       } else {
-        await extra.reply(`❌ Failed to generate image: ${error.message}`);
+        await reply(`❌ Failed to generate image: ${error.message}`);
       }
     }
   }
 };
-
