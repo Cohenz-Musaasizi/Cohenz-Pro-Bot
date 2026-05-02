@@ -12,21 +12,21 @@ module.exports = {
     adminOnly: true,
     botAdminNeeded: true,
     
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+      const { from, groupMetadata, reply } = context;
       try {
-        const code = await sock.groupInviteCode(extra.from);
+        const code = await sock.groupInviteCode(from);
         const link = `https://chat.whatsapp.com/${code}`;
         
         let text = `🔗 *GROUP INVITE LINK*\n\n`;
-        text += `📱 Group: ${extra.groupMetadata.subject}\n`;
+        text += `📱 Group: ${groupMetadata.subject}\n`;
         text += `🔗 Link: ${link}\n\n`;
         text += `⚠️ Don't share this link publicly!`;
         
-        await extra.reply(text);
+        await reply(text);
         
       } catch (error) {
-        await extra.reply(`❌ Error: ${error.message}`);
+        await reply(`❌ Error: ${error.message}`);
       }
     }
   };
-  
