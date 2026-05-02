@@ -11,20 +11,21 @@ module.exports = {
   category: 'fun',
   description: 'Get random memes',
   usage: '.meme',
-  
-  async execute(sock, msg, args, extra) {
+
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       const meme = await APIs.getMeme();
       
       const imageBuffer = await axios.get(meme.url, { responseType: 'arraybuffer' });
       
-      await sock.sendMessage(extra.from, {
+      await sock.sendMessage(from, {
         image: Buffer.from(imageBuffer.data),
         caption: `😂 *${meme.title}*\n\n📱 From: r/${meme.subreddit}\n👤 By: ${meme.author}\n⬆️ Upvotes: ${meme.ups}`
       }, { quoted: msg });
       
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      reply(`❌ Error: ${error.message}`);
     }
   }
 };
