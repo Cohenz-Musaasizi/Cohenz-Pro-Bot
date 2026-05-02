@@ -10,7 +10,8 @@ module.exports = {
   usage: '.block @user or reply',
   ownerOnly: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       let target;
       
@@ -22,18 +23,18 @@ module.exports = {
       } else if (ctx?.participant && ctx.stanzaId && ctx.quotedMessage) {
         target = ctx.participant;
       } else {
-        return extra.reply('❌ Please mention or reply to a user to block!');
+        return reply('❌ Please mention or reply to a user to block!');
       }
       
       await sock.updateBlockStatus(target, 'block');
       
-      await sock.sendMessage(extra.from, {
+      await sock.sendMessage(from, {
         text: `✅ @${target.split('@')[0]} has been blocked!`,
         mentions: [target]
       }, { quoted: msg });
       
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      reply(`❌ Error: ${error.message}`);
     }
   }
 };
