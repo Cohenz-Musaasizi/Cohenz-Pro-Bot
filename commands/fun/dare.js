@@ -6,9 +6,11 @@ module.exports = {
     name: 'dare',
     aliases: [],
     category: 'fun',
-    desc: 'Get a random dare challenge',
-    usage: 'dare',
-    execute: async (sock, msg, args) => {
+    description: 'Get a random dare challenge',
+    usage: '.dare',
+    
+    async execute(sock, msg, args, context) {
+      const { from, reply } = context;
       try {
         const dares = [
           "Send a screenshot of your gallery!",
@@ -35,16 +37,13 @@ module.exports = {
         
         const randomDare = dares[Math.floor(Math.random() * dares.length)];
         
-        await sock.sendMessage(msg.key.remoteJid, {
+        await sock.sendMessage(from, {
           text: `${randomDare}`
         }, { quoted: msg });
         
       } catch (error) {
         console.error('Dare Error:', error);
-        await sock.sendMessage(msg.key.remoteJid, {
-          text: `❌ Error: ${error.message}`
-        }, { quoted: msg });
+        reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
