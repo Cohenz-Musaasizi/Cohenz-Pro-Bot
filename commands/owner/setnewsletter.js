@@ -18,9 +18,9 @@ module.exports = {
   groupOnly: false,
   botAdminOnly: false,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const chatId = extra.from;
       let newsletterJid = '';
       
       // Check if we're currently in a newsletter chat
@@ -53,7 +53,7 @@ module.exports = {
         
         // If we still don't have a newsletter JID, show error
         if (!newsletterJid) {
-          return extra.reply('❌ The replied message is not from a newsletter!\n\nPlease reply to a newsletter message or provide a newsletter JID directly.');
+          return reply('❌ The replied message is not from a newsletter!\n\nPlease reply to a newsletter message or provide a newsletter JID directly.');
         }
       } else if (args[0]) {
         // Get JID from command arguments
@@ -61,7 +61,7 @@ module.exports = {
       } else {
         // Show current status
         const currentJid = config.newsletterJid || 'Not set';
-        return extra.reply(
+        return reply(
           `📰 *Newsletter Configuration*\n\n` +
           `Current Newsletter JID: \`${currentJid}\`\n` +
           `Newsletter Name: ${config.botName}\n\n` +
@@ -74,7 +74,7 @@ module.exports = {
       
       // Validate JID format (should end with @newsletter)
       if (!newsletterJid.endsWith('@newsletter')) {
-        return extra.reply('❌ Invalid newsletter JID format!\n\nNewsletter JID must end with `@newsletter`\nExample: `120363161513685998@newsletter`');
+        return reply('❌ Invalid newsletter JID format!\n\nNewsletter JID must end with `@newsletter`\nExample: `120363161513685998@newsletter`');
       }
       
       // Update config.js
@@ -102,7 +102,7 @@ module.exports = {
       // Update in-memory config
       config.newsletterJid = newsletterJid;
       
-      await extra.reply(
+      await reply(
         `✅ Newsletter JID updated successfully!\n\n` +
         `📰 Newsletter JID: \`${newsletterJid}\`\n` +
         `📛 Newsletter Name: ${config.botName}\n\n` +
@@ -111,8 +111,7 @@ module.exports = {
       
     } catch (error) {
       console.error('SetNewsletter command error:', error);
-      await extra.reply(`❌ Failed to set newsletter JID: ${error.message}`);
+      await reply(`❌ Failed to set newsletter JID: ${error.message}`);
     }
   }
 };
-
