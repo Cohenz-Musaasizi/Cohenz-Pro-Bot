@@ -12,9 +12,10 @@ module.exports = {
   usage: '.restart',
   ownerOnly: true,
 
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     try {
-      await extra.reply('🔁 Restarting bot...');
+      await reply('🔁 Restarting bot...');
 
       const run = (cmd) =>
         new Promise((resolve, reject) => {
@@ -38,7 +39,7 @@ module.exports = {
       }, 500);
     } catch (error) {
       console.error('Restart error:', error);
-      await extra.reply(`❌ Error restarting bot: ${error.message}`);
+      await reply(`❌ Error restarting bot: ${error.message}`);
     }
   },
 };
