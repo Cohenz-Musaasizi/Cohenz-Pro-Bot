@@ -11,13 +11,13 @@ module.exports = {
   description: 'Convert text to speech using TTS-Nova',
   usage: '.tts <text>',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const chatId = extra.from;
       const text = args.join(' ');
 
       if (!text) {
-        return extra.reply('Please provide text to convert to speech.\nExample: .tts hi how are you');
+        return reply('Please provide text to convert to speech.\nExample: .tts hi how are you');
       }
 
       const audioUrl = await APIs.textToSpeech(text);
@@ -31,7 +31,7 @@ module.exports = {
       
       const audioBuffer = Buffer.from(audioResponse.data);
 
-      await sock.sendMessage(chatId, {
+      await sock.sendMessage(from, {
         audio: audioBuffer,
         mimetype: 'audio/mp3',
         ptt: true // Play as voice message
@@ -39,9 +39,7 @@ module.exports = {
 
     } catch (error) {
       console.error('TTS command error:', error);
-      await extra.reply(`❌ Failed to generate speech: ${error.message}`);
+      await reply(`❌ Failed to generate speech: ${error.message}`);
     }
   }
 };
-
-
