@@ -12,7 +12,8 @@ module.exports = {
   description: 'Show all available commands',
   usage: '.menu',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, sender, reply } = context;
     try {
       const commands = loadCommands();
       const categories = {};
@@ -31,7 +32,7 @@ module.exports = {
       const displayOwner = ownerNames[0] || config.ownerName || 'Bot Owner';
       
       let menuText = `╭━━『 *${config.botName}* 』━━╮\n\n`;
-      menuText += `👋 Hello @${extra.sender.split('@')[0]}!\n\n`;
+      menuText += `👋 Hello @${sender.split('@')[0]}!\n\n`;
       menuText += `⚡ Prefix: ${config.prefix}\n`;
       menuText += `📦 Total Commands: ${commands.size}\n`;
       menuText += `👑 Owner: ${displayOwner}\n\n`;
@@ -136,7 +137,7 @@ module.exports = {
       }
 
        // Textmaker Commands
-       if (categories.utility) {
+       if (categories.textmaker) {
         menuText += `┏━━━━━━━━━━━━━━━━━\n`;
         menuText += `┃ 🖋️ TEXTMAKER COMMAND\n`;
         menuText += `┗━━━━━━━━━━━━━━━━━\n`;
@@ -151,17 +152,15 @@ module.exports = {
       menuText += `🌟 Bot Version: 1.0.0\n`;
       
       // Send menu with image
-      const fs = require('fs');
-      const path = require('path');
       const imagePath = path.join(__dirname, '../../utils/bot_image.jpg');
       
       if (fs.existsSync(imagePath)) {
         // Send image with newsletter forwarding context
         const imageBuffer = fs.readFileSync(imagePath);
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           image: imageBuffer,
           caption: menuText,
-          mentions: [extra.sender],
+          mentions: [sender],
           contextInfo: {
             forwardingScore: 1,
             isForwarded: true,
@@ -173,14 +172,14 @@ module.exports = {
           }
         }, { quoted: msg });
       } else {
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           text: menuText,
-          mentions: [extra.sender]
+          mentions: [sender]
         }, { quoted: msg });
       }
       
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
