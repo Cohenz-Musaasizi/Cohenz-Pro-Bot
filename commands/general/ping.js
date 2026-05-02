@@ -9,22 +9,22 @@ module.exports = {
     description: 'Check bot response time',
     usage: '.ping',
     
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+      const { from, reply } = context;
       try {
         const start = Date.now();
-        const sent = await extra.reply('🏓 Pinging...');
+        const sent = await reply('🏓 Pinging...');
         const end = Date.now();
         
         const responseTime = end - start;
         
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           text: `🏓 *Pong!*\n⚡ Response Time: ${responseTime}ms`,
           edit: sent.key
         });
         
       } catch (error) {
-        await extra.reply(`❌ Error: ${error.message}`);
+        await reply(`❌ Error: ${error.message}`);
       }
     }
-  };
-  
+};
