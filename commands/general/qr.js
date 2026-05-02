@@ -11,10 +11,11 @@ module.exports = {
   description: 'Generate QR code from text',
   usage: '.qr <text>',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       if (args.length === 0) {
-        return extra.reply('❌ Usage: .qr <text>\n\nExample: .qr https://google.com');
+        return reply('❌ Usage: .qr <text>\n\nExample: .qr https://google.com');
       }
       
       const text = args.join(' ');
@@ -25,13 +26,13 @@ module.exports = {
         margin: 2
       });
       
-      await sock.sendMessage(extra.from, {
+      await sock.sendMessage(from, {
         image: qrBuffer,
         caption: `✅ QR Code Generated!\n\n📝 Text: ${text}`
       }, { quoted: msg });
       
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
