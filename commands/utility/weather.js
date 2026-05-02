@@ -11,12 +11,11 @@ module.exports = {
   description: 'Get weather for a city',
   usage: '.weather <city>',
   
-  async execute(sock, msg, args) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       if (args.length === 0) {
-        return await sock.sendMessage(msg.key.remoteJid, { 
-          text: '❌ Usage: .weather <city>\n\nExample: .weather London' 
-        }, { quoted: msg });
+        return reply('❌ Usage: .weather <city>\n\nExample: .weather London');
       }
       
       const city = args.join(' ');
@@ -27,11 +26,11 @@ module.exports = {
       
       const weatherText = `Weather in ${weather.name}: ${weather.weather[0].description}. Temperature: ${weather.main.temp}°C.`;
       
-      await sock.sendMessage(msg.key.remoteJid, { text: weatherText }, { quoted: msg });
+      await sock.sendMessage(from, { text: weatherText }, { quoted: msg });
       
     } catch (error) {
       console.error('Error fetching weather:', error);
-      await sock.sendMessage(msg.key.remoteJid, { text: 'Sorry, I could not fetch the weather right now.' }, { quoted: msg });
+      reply('Sorry, I could not fetch the weather right now.');
     }
   }
 };
