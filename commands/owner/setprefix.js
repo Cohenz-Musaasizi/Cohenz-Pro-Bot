@@ -14,16 +14,17 @@ module.exports = {
   usage: '.setprefix <new prefix>',
   ownerOnly: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     try {
       if (args.length === 0) {
-        return extra.reply(`📌 Current prefix: ${config.prefix}\n\nUsage: .setprefix <new prefix>`);
+        return reply(`📌 Current prefix: ${config.prefix}\n\nUsage: .setprefix <new prefix>`);
       }
       
       const newPrefix = args[0];
       
       if (newPrefix.length > 3) {
-        return extra.reply('❌ Prefix must be 1-3 characters long!');
+        return reply('❌ Prefix must be 1-3 characters long!');
       }
       
       // Update config
@@ -35,10 +36,10 @@ module.exports = {
       configContent = configContent.replace(/prefix: '.*'/, `prefix: '${newPrefix}'`);
       fs.writeFileSync(configPath, configContent);
       
-      await extra.reply(`✅ Prefix changed to: ${newPrefix}\n\nNew command format: ${newPrefix}command`);
+      await reply(`✅ Prefix changed to: ${newPrefix}\n\nNew command format: ${newPrefix}command`);
       
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
