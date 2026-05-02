@@ -147,16 +147,16 @@ module.exports = {
   usage: '.update [optional_zip_url]',
   ownerOnly: true,
 
-  async execute(sock, msg, args, extra) {
-    const chatId = msg.key.remoteJid;
+  async execute(sock, msg, args, context) {
+    const { reply } = context;
     const zipUrl = (args[0] || config.updateZipUrl || process.env.UPDATE_ZIP_URL || '').trim();
 
     if (!zipUrl) {
-      return extra.reply('❌ No update URL configured. Set updateZipUrl in config.js or pass a URL: `.update <zip_url>`');
+      return reply('❌ No update URL configured. Set updateZipUrl in config.js or pass a URL: `.update <zip_url>`');
     }
 
     try {
-      await extra.reply('🔄 Updating the bot, please wait…');
+      await reply('🔄 Updating the bot, please wait…');
 
       const { copiedFiles } = await updateViaZip(zipUrl);
 
@@ -164,7 +164,7 @@ module.exports = {
         ? `✅ Update complete. Files updated: ${copiedFiles.length}`
         : '✅ Update complete. No files needed updating.';
 
-      await sock.sendMessage(chatId, { text: `${summary}\nRestarting…` }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { text: `${summary}\nRestarting…` }, { quoted: msg });
 
       // Attempt restart via pm2 if available, else exit to allow panel auto-restart
       try {
@@ -175,8 +175,7 @@ module.exports = {
       setTimeout(() => process.exit(0), 500);
     } catch (error) {
       console.error('Update failed:', error);
-      await sock.sendMessage(chatId, { text: `❌ Update failed:\n${String(error.message || error)}` }, { quoted: msg });
+      await sock.sendMessage(msg.key.remoteJid, { text: `❌ Update failed:\n${String(error.message || error)}` }, { quoted: msg });
     }
   }
 };
-
