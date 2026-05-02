@@ -16,9 +16,10 @@ module.exports = {
   adminOnly: true,
   botAdminNeeded: true,
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const groupMetadata = await sock.groupMetadata(extra.from);
+      const groupMetadata = await sock.groupMetadata(from);
       const participants = groupMetadata.participants || [];
       const mentions = participants.map((p) => p.id || p.lid).filter(Boolean);
       
@@ -30,7 +31,7 @@ module.exports = {
         // Build target message for download
         targetMessage = {
           key: {
-            remoteJid: extra.from,
+            remoteJid: from,
             id: ctxInfo.stanzaId,
             participant: ctxInfo.participant,
           },
@@ -56,20 +57,20 @@ module.exports = {
           
           if (targetMessage.message?.imageMessage) {
             const text = args.join(' ') || targetMessage.message.imageMessage.caption || '';
-            await sock.sendMessage(extra.from, {
+            await sock.sendMessage(from, {
               image: mediaBuffer,
               caption: text,
               mentions
             }, { quoted: msg });
           } else if (targetMessage.message?.videoMessage) {
             const text = args.join(' ') || targetMessage.message.videoMessage.caption || '';
-            await sock.sendMessage(extra.from, {
+            await sock.sendMessage(from, {
               video: mediaBuffer,
               caption: text,
               mentions
             }, { quoted: msg });
           } else if (targetMessage.message?.stickerMessage) {
-            await sock.sendMessage(extra.from, {
+            await sock.sendMessage(from, {
               sticker: mediaBuffer,
               mentions
             }, { quoted: msg });
@@ -77,14 +78,14 @@ module.exports = {
             // If there's text, send it separately
             const text = args.join(' ');
             if (text) {
-              await sock.sendMessage(extra.from, { text, mentions }, { quoted: msg });
+              await sock.sendMessage(from, { text, mentions }, { quoted: msg });
             }
           }
         } catch (mediaError) {
           console.error('Error downloading media for hidetag:', mediaError);
           // Fallback to text with mentions
           const text = args.join(' ') || ' ';
-          await sock.sendMessage(extra.from, { text, mentions }, { quoted: msg });
+          await sock.sendMessage(from, { text, mentions }, { quoted: msg });
         }
       } else {
         // Check if replying to a message - send exact message content
@@ -94,16 +95,16 @@ module.exports = {
                            ctxInfo.quotedMessage.extendedTextMessage?.text || 
                            args.join(' ') || ' ';
           
-          await sock.sendMessage(extra.from, { text: quotedText, mentions }, { quoted: msg });
+          await sock.sendMessage(from, { text: quotedText, mentions }, { quoted: msg });
         } else {
           // Plain text message
           const text = args.join(' ') || ' ';
-          await sock.sendMessage(extra.from, { text, mentions }, { quoted: msg });
+          await sock.sendMessage(from, { text, mentions }, { quoted: msg });
         }
       }
     } catch (error) {
       console.error('HideTag command error:', error);
-      await extra.reply('❌ Failed to tag members.');
+      await reply('❌ Failed to tag members.');
     }
   },
 };
