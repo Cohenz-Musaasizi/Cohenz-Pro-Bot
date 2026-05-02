@@ -15,14 +15,15 @@ module.exports = {
   usage: '.take [packname] (reply to sticker)',
   category: 'general',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, sender, reply } = context;
     let targetMessage = msg;
     const ctxInfo = msg.message?.extendedTextMessage?.contextInfo;
     
     if (ctxInfo?.quotedMessage) {
       targetMessage = {
         key: { 
-          remoteJid: extra.from, 
+          remoteJid: from, 
           id: ctxInfo.stanzaId, 
           participant: ctxInfo.participant 
         },
@@ -33,7 +34,7 @@ module.exports = {
     const stickerMsg = targetMessage.message?.stickerMessage;
     
     if (!stickerMsg) {
-      return extra.reply('🎭 Reply to a *sticker* with `.take` to steal it.');
+      return reply('🎭 Reply to a *sticker* with `.take` to steal it.');
     }
     
     try {
@@ -44,9 +45,9 @@ module.exports = {
         { logger: undefined, reuploadRequest: sock.updateMediaMessage },
       );
       
-      if (!mediaBuffer) return extra.reply('❌ Failed to download sticker. Please try again.');
+      if (!mediaBuffer) return reply('❌ Failed to download sticker. Please try again.');
       
-      const userName = msg.pushName || extra.sender.split('@')[0];
+      const userName = msg.pushName || sender.split('@')[0];
       const packname = args.length ? args.join(' ') : userName;
       
       const img = new webp.Image();
@@ -71,12 +72,11 @@ module.exports = {
       img.exif = exif;
       const finalBuffer = await img.save(null);
       
-      await sock.sendMessage(extra.from, { sticker: finalBuffer }, { quoted: msg });
+      await sock.sendMessage(from, { sticker: finalBuffer }, { quoted: msg });
       
     } catch (error) {
       console.error('Take command error:', error);
-      await extra.reply('❌ Failed to steal sticker. Please try again.');
+      await reply('❌ Failed to steal sticker. Please try again.');
     }
   },
 };
-
