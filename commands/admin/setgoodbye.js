@@ -8,42 +8,38 @@ module.exports = {
   name: 'setgoodbye',
   aliases: ['goodbyetext'],
   category: 'admin',
-  desc: 'Set custom goodbye message',
-  usage: 'setgoodbye <message> (use @user for member mention)',
+  description: 'Set custom goodbye message',
+  usage: '.setgoodbye <message> (use @user for member mention)',
   groupOnly: true,
   adminOnly: true,
   botAdminNeeded: true,
-  execute: async (sock, msg, args) => {
+
+  async execute(sock, msg, args, context) {
+    const { from, sender, reply } = context;
     try {
-      const groupId = msg.key.remoteJid;
-      
       if (!args.length) {
-        const groupSettings = db.getGroupSettings(groupId);
-        return await sock.sendMessage(groupId, {
-          text: `📝 *Current Goodbye Message*\n\n${groupSettings.goodbyeMessage}\n\n*Usage:* .setgoodbye <message>\n\n*Tip:* Use @user to mention the member who left`
-        }, { quoted: msg });
+        const groupSettings = db.getGroupSettings(from);
+        return reply(
+          `📝 *Current Goodbye Message*\n\n${groupSettings.goodbyeMessage}\n\n*Usage:* .setgoodbye <message>\n\n*Tip:* Use @user to mention the member who left`
+        );
       }
-      
+
       const goodbyeMessage = args.join(' ');
-      
+
       if (goodbyeMessage.length > 500) {
-        return await sock.sendMessage(groupId, {
-          text: '❌ Goodbye message is too long! Maximum 500 characters.'
-        }, { quoted: msg });
+        return reply('❌ Goodbye message is too long! Maximum 500 characters.');
       }
-      
-      db.updateGroupSettings(groupId, { goodbyeMessage });
-      
-      await sock.sendMessage(groupId, {
-        text: `✅ Goodbye message updated!\n\n*Preview:*\n${goodbyeMessage.replace('@user', '@' + msg.key.participant.split('@')[0])}`,
-        mentions: [msg.key.participant]
-      }, { quoted: msg });
-      
+
+      db.updateGroupSettings(from, { goodbyeMessage });
+
+      await reply(
+        `✅ Goodbye message updated!\n\n*Preview:*\n${goodbyeMessage.replace('@user', '@' + sender.split('@')[0])}`,
+        { mentions: [sender] }
+      );
+
     } catch (error) {
       console.error('Set Goodbye Error:', error);
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: `❌ Error: ${error.message}`
-      }, { quoted: msg });
+      await reply(`❌ Error: ${error.message}`);
     }
   }
 };
