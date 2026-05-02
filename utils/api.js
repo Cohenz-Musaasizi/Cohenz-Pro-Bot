@@ -12,7 +12,7 @@ const api = axios.create({
   }
 });
 
-// ── Gemini memory & slang setup ───────────────────────
+// ── Gemini memory & slang setup ────────────────────────
 const chatHistory = new Map();
 const MAX_HISTORY = 20;
 
@@ -35,7 +35,7 @@ function preloadSlangKnowledge(chatId) {
   }
 }
 
-// ── API Endpoints ─────────────────────────────────────
+// ── API Endpoints (all existing functions remain unchanged) ──
 const APIs = {
   // Image Generation
   generateImage: async (prompt) => {
@@ -116,7 +116,7 @@ const APIs = {
       throw new Error('Failed to get response from Gemini');
     }
   },
-
+  
   // YouTube Download
   ytDownload: async (url, type = 'audio') => {
     try {
@@ -539,7 +539,7 @@ const APIs = {
     }
   },
   
-  // Screenshot Website API (FIXED)
+  // Screenshot Website API
   screenshotWebsite: async (url) => {
     try {
       const apiUrl = `https://eliteprotech-apis.zone.id/ssweb?url=${encodeURIComponent(url)}`;
@@ -551,18 +551,18 @@ const APIs = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
-
-      // If the response is an image, return the buffer directly
+      
+      // Return the image buffer directly (API returns PNG binary)
       if (response.headers['content-type']?.includes('image')) {
         return Buffer.from(response.data);
       }
-
-      // If it's JSON, try to extract a URL
+      
+      // If API returns JSON with URL, try to parse it
       try {
         const data = JSON.parse(Buffer.from(response.data).toString());
         return data.url || data.data?.url || data.image || apiUrl;
       } catch (e) {
-        // Not JSON, assume it's image data
+        // If not JSON, assume it's image data and return buffer
         return Buffer.from(response.data);
       }
     } catch (error) {
@@ -570,7 +570,7 @@ const APIs = {
     }
   },
   
-  // Text to Speech API (FIXED)
+  // Text to Speech API
   textToSpeech: async (text) => {
     try {
       const apiUrl = `https://www.laurine.site/api/tts/tts-nova?text=${encodeURIComponent(text)}`;
@@ -581,32 +581,32 @@ const APIs = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
-
+      
       if (response.data) {
-        // If it's a direct URL string
+        // Check if response.data is a string (direct URL)
         if (typeof response.data === 'string' && (response.data.startsWith('http://') || response.data.startsWith('https://'))) {
           return response.data;
         }
-
-        // Check nested data
+        
+        // Check nested data structure
         if (response.data.data) {
-          const d = response.data.data;
-          if (d.URL) return d.URL;
-          if (d.url) return d.url;
-          if (d.MP3) return `https://ttsmp3.com/created_mp3_ai/${d.MP3}`;
-          if (d.mp3) return `https://ttsmp3.com/created_mp3_ai/${d.mp3}`;
+          const data = response.data.data;
+          if (data.URL) return data.URL;
+          if (data.url) return data.url;
+          if (data.MP3) return `https://ttsmp3.com/created_mp3_ai/${data.MP3}`;
+          if (data.mp3) return `https://ttsmp3.com/created_mp3_ai/${data.mp3}`;
         }
-
+        
         // Check top-level URL fields
         if (response.data.URL) return response.data.URL;
         if (response.data.url) return response.data.url;
         if (response.data.MP3) return `https://ttsmp3.com/created_mp3_ai/${response.data.MP3}`;
         if (response.data.mp3) return `https://ttsmp3.com/created_mp3_ai/${response.data.mp3}`;
       }
-
+      
       throw new Error('Invalid API response structure');
     } catch (error) {
-      throw new Error('Failed to generate speech: ' + error.message);
+      throw new Error(`Failed to generate speech: ${error.message}`);
     }
   }
 };
