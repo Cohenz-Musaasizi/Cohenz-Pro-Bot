@@ -15,7 +15,8 @@ module.exports = {
   description: 'Download images/videos from Pinterest',
   usage: '.pinterest <Pinterest URL>',
   
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
       // Check if message has already been processed
       if (processedMessages.has(msg.key.id)) {
@@ -35,7 +36,7 @@ module.exports = {
                    args.join(' ');
       
       if (!text) {
-        return await extra.reply(
+        return reply(
           '📌 *Pinterest Downloader*\n\n' +
           'Download images or videos from Pinterest.\n\n' +
           `Usage: ${config.prefix}pinterest <Pinterest URL>\n\n` +
@@ -58,12 +59,12 @@ module.exports = {
       }
       
       if (!urlMatch) {
-        return await extra.reply('❌ Please provide a valid Pinterest pin URL!\n\nExamples:\n• https://in.pinterest.com/pin/1109363320773690068/\n• https://pin.it/dddddd\n• pin.it/dddddd');
+        return reply('❌ Please provide a valid Pinterest pin URL!\n\nExamples:\n• https://in.pinterest.com/pin/1109363320773690068/\n• https://pin.it/dddddd\n• pin.it/dddddd');
       }
       
       const pinterestUrl = urlMatch[0];
       
-      await sock.sendMessage(extra.from, {
+      await sock.sendMessage(from, {
         react: { text: '📥', key: msg.key }
       });
       
@@ -83,62 +84,46 @@ module.exports = {
         if (error.response) {
           const status = error.response.status;
           if (status === 400) {
-            return await extra.reply('❌ Bad Request: Invalid Pinterest URL. Please check the link.');
+            return reply('❌ Bad Request: Invalid Pinterest URL. Please check the link.');
           } else if (status === 429) {
-            return await extra.reply('❌ Rate limit exceeded. Please try again later.');
+            return reply('❌ Rate limit exceeded. Please try again later.');
           } else if (status === 500) {
-            return await extra.reply('❌ Server error. Please try again later.');
+            return reply('❌ Server error. Please try again later.');
           }
         }
-        return await extra.reply('❌ Failed to fetch Pinterest content. Please try again.');
+        return reply('❌ Failed to fetch Pinterest content. Please try again.');
       }
       
       if (!response.data || !response.data.status || !response.data.result) {
-        return await extra.reply('❌ Invalid response from API. The pin might not exist or be private.');
+        return reply('❌ Invalid response from API. The pin might not exist or be private.');
       }
       
       const pinData = response.data.result;
       
-      // Log full response for debugging videos
       console.log('Pinterest API Response:', JSON.stringify(pinData, null, 2));
       
-      // Check for both image and video fields (videos might have different field name)
-      // If video field exists, it's definitely a video
       const isVideo = !!pinData.video;
       const imageUrl = pinData.video || pinData.image || pinData.url;
-      const thumbnail = pinData.thumbnail;
       const title = pinData.title || 'Pinterest Pin';
       const author = pinData.author || 'Unknown';
       
-      console.log('Media URL found:', imageUrl);
-      console.log('Is video check:', {
-        hasVideoField: !!pinData.video,
-        hasImageField: !!pinData.image,
-        isVideo: isVideo,
-        url: imageUrl
-      });
-      
-      // Debug: log the response structure if no media URL found
       if (!imageUrl) {
         console.error('Pinterest API response structure:', JSON.stringify(pinData, null, 2));
-        return await extra.reply('❌ No media URL found in API response. The pin might be a video or have a different format.');
+        return reply('❌ No media URL found in API response. The pin might be a video or have a different format.');
       }
       
-      // Build caption
       let caption = `📌 *${title}*\n\n`;
       if (author && author !== 'Unknown') {
         caption += `👤 Author: ${author}\n`;
       }
       caption += `\n*Downloaded by ${config.botName}*`;
       
-      // Send only the main media (not thumbnail separately to avoid duplicates)
       if (isVideo) {
-        // Download video as buffer (Pinterest tokenized URLs need to be downloaded)
         try {
           const videoResponse = await axios.get(imageUrl, {
             responseType: 'arraybuffer',
-            timeout: 120000, // 2 minutes for video download
-            maxContentLength: 100 * 1024 * 1024, // 100MB limit
+            timeout: 120000,
+            maxContentLength: 100 * 1024 * 1024,
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
               'Accept': 'video/mp4,video/*,*/*',
@@ -151,26 +136,22 @@ module.exports = {
           if (!videoBuffer || videoBuffer.length === 0) {
             throw new Error('Empty video buffer');
           }
-          
-          // Basic validation - just check size
           if (videoBuffer.length < 100) {
             throw new Error('Video buffer too small, likely corrupted');
           }
           
           console.log(`Video downloaded successfully: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
           
-          // Send video buffer - let WhatsApp auto-detect mimetype
-          await sock.sendMessage(extra.from, {
+          await sock.sendMessage(from, {
             video: videoBuffer,
             caption: caption
           }, { quoted: msg });
         } catch (videoError) {
           console.error('Video download/send error:', videoError.message);
-          return await extra.reply('❌ Failed to download or send video. The video might be expired or require authentication.');
+          return reply('❌ Failed to download or send video. The video might be expired or require authentication.');
         }
       } else {
-        // For images, use the main image URL (not thumbnail)
-        await sock.sendMessage(extra.from, {
+        await sock.sendMessage(from, {
           image: { url: imageUrl },
           caption: caption
         }, { quoted: msg });
@@ -178,8 +159,7 @@ module.exports = {
       
     } catch (error) {
       console.error('Error in pinterest command:', error);
-      return await extra.reply(`❌ Error: ${error.message || 'Unknown error occurred'}`);
+      return reply(`❌ Error: ${error.message || 'Unknown error occurred'}`);
     }
   },
 };
-
