@@ -552,6 +552,56 @@ const handleMessage = async (sock, msg) => {
     // Check antiall protection (owner only feature)
     if (isGroup) {
       const groupSettings = database.getGroupSettings(from);
+      // ── ANTI‑BADWORD DETECTION (owner‑only toggle per group) ──
+if (groupSettings.antibadword) {
+  const badWords = [
+    // English
+    'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'dick', 'piss', 'cunt', 'motherfucker',
+    'wanker', 'slut', 'whore', 'douche', 'dumbass', 'jackass', 'arse', 'crap', 'hell',
+    'goddamn', 'damn', 'bugger', 'bollocks', 'minge', 'twat', 'bellend', 'nonce',
+    'pedo', 'pedophile', 'rape', 'nigger', 'retard', 'moron', 'idiot', 'stupid',
+    'loser', 'kill yourself', 'kys', 'faggot', 'fag', 'tranny', 'shemale',
+    // Luganda – common insults and foul words
+    'kawuulira', 'musilu', 'musilu gwe', 'nsikwa', 'mbuzi', 'mbwa', 'kabwa',
+    'mmaama wo', 'taata wo', 'mukazi wo', 'omusajja wo', 'gwe amaka', 'gwe ekibala',
+    'ekifula', 'ekiwuka', 'akawuka', 'akasila', 'omukazi', 'omusawo', 'omulogo',
+    'omufere', 'omukyala', 'omulenzi', 'omuwala', 'ekyala', 'ekikazi',
+    'olukale', 'olubiri', 'olugambo', 'olukwe', 'olulimi', 'olumbe',
+    'omutwe', 'omutima', 'omulambo', 'omugongo', 'omukono', 'amagulu',
+    'akamwa', 'eriiso', 'okutu', 'enyindo', 'omubiri', 'omusaayi',
+    'omuliro', 'amazzi', 'ettaka', 'olufu', 'omwaka', 'ekiseera',
+    // common variations and abbreviations
+    'fck', 'fk', 'sh*t', 'b!tch', 'a$$', 'azz', 'azzhole', 'mofo',
+    'mf', 'bs', 'bullshit', 'dafuq', 'wtf', 'stfu', 'gtfo',
+    'fuk', 'fuking', 'fukin', 'fcking', 'fckin', 'fuckin',
+    'sht', 'sh!t', 'bitchy', 'bitching', 'dickhead', 'asswipe',
+    'fagot', 'f@g', 'f@ggot', 'n1gger', 'nigga', 'negro',
+    'retard', 'retarded', 'defective', 'imbecile', 'simpleton',
+    // additional Luganda words
+    'kasiru', 'kasirusiru', 'ddogo', 'eddog', 'ebisiyaga', 'ebiswaga',
+    'omuganda', 'omunyarwanda', 'omukiga', 'omutooro', 'omugwere',
+    'omusoga', 'omukongo', 'omuzungu', 'omuhindi', 'omuchina',
+    // ethnic / tribal slurs (often used in Uganda)
+    'mudoko', 'mukolo', 'musenyu', 'mugwagwa', 'mufumbira',
+  ];
+
+  const lowerBody = body.toLowerCase().replace(/[^a-z\s]/g, ''); // remove non‑alpha except spaces
+  const found = badWords.some(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'i');
+    return regex.test(lowerBody);
+  });
+
+  if (found) {
+    // Delete the message
+    await sock.sendMessage(from, { delete: msg.key });
+    // Warn the user
+    await sock.sendMessage(from, {
+      text: `⚠️ @${sender.split('@')[0]} foul language is not allowed here.`,
+      mentions: [sender]
+    });
+    return;   // stop processing this message
+  }
+}
       if (groupSettings.antiall) {
         const senderIsAdmin = await isAdmin(sock, sender, from, groupMetadata);
         const senderIsOwner = isOwner(sender);
