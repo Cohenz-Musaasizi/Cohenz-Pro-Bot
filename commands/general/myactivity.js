@@ -10,14 +10,13 @@ module.exports = {
     usage: '.myactivity',
     groupOnly: true,
 
-    async execute(sock, msg, args, extra) {
+    async execute(sock, msg, args, context) {
+        const { from, sender, reply } = context;
         try {
-            const from = extra.from;
-            const sender = extra.sender;
             const stats = getStats(from);
 
             if (!stats || !stats.users || !stats.users[sender]) {
-                return extra.reply('📊 You haven\'t sent any messages today yet!');
+                return reply('📊 You haven\'t sent any messages today yet!');
             }
 
             const userCount = stats.users[sender];
@@ -48,7 +47,7 @@ Keep chatting! 💬
 
         } catch (err) {
             console.error('[myactivity cmd] error:', err);
-            extra.reply('❌ Error loading your activity stats.');
+            reply('❌ Error loading your activity stats.');
         }
     }
 };
