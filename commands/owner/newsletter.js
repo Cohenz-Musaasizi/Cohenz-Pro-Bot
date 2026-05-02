@@ -61,17 +61,16 @@ module.exports = {
   description: 'Get newsletter information from WhatsApp channel link',
   usage: '.newsletter <channel link>',
   ownerOnly: true,
-  async execute(sock, msg, args, extra) {
+  async execute(sock, msg, args, context) {
+    const { from, reply } = context;
     try {
-      const chatId = extra.from;
-      
       // Get link from args or message text
       const text = msg.message?.conversation || 
                    msg.message?.extendedTextMessage?.text ||
                    args.join(' ');
       
       if (!text || text.trim().length === 0) {
-        return extra.reply('❌ Please provide a WhatsApp channel link!\n\nExample: .newsletter https://whatsapp.com/channel/0029VaAbCdEfGhIJkL');
+        return reply('❌ Please provide a WhatsApp channel link!\n\nExample: .newsletter https://whatsapp.com/channel/0029VaAbCdEfGhIJkL');
       }
       
       // Extract link from text (remove command prefix if present)
@@ -79,14 +78,14 @@ module.exports = {
       
       // If no link provided, show error
       if (!link || link.length === 0) {
-        return extra.reply('❌ Please provide a WhatsApp channel link!\n\nExample: .newsletter https://whatsapp.com/channel/0029VaAbCdEfGhIJkL');
+        return reply('❌ Please provide a WhatsApp channel link!\n\nExample: .newsletter https://whatsapp.com/channel/0029VaAbCdEfGhIJkL');
       }
       
       // Try to extract invite code first (works with or without full URL)
       const inviteCode = getChannelInviteCode(link);
       
       if (!inviteCode) {
-        return extra.reply('❌ Could not extract invite code from the link!\n\nPlease provide a valid WhatsApp channel link.\nExample: https://whatsapp.com/channel/0029VaAbCdEfGhIJkL\n\nOr just the invite code: .newsletter 0029VaAbCdEfGhIJkL');
+        return reply('❌ Could not extract invite code from the link!\n\nPlease provide a valid WhatsApp channel link.\nExample: https://whatsapp.com/channel/0029VaAbCdEfGhIJkL\n\nOr just the invite code: .newsletter 0029VaAbCdEfGhIJkL');
       }
       
       // Use the extracted invite code directly
@@ -124,13 +123,13 @@ module.exports = {
         
         if (meta.image) {
           // Send with image if available
-          await sock.sendMessage(chatId, {
+          await sock.sendMessage(from, {
             image: { url: meta.image },
             caption: infoText
           }, { quoted: msg });
         } else {
           // Send text only
-          await sock.sendMessage(chatId, {
+          await sock.sendMessage(from, {
             text: infoText
           }, { quoted: msg });
         }
@@ -139,20 +138,19 @@ module.exports = {
         console.error('Newsletter command error:', error);
         
         if (error.message.includes('Invalid channel link')) {
-          await extra.reply('❌ Invalid channel link format!\n\nPlease provide a valid WhatsApp channel link.\nExample: https://whatsapp.com/channel/0029VaAbCdEfGhIJkL');
+          reply('❌ Invalid channel link format!\n\nPlease provide a valid WhatsApp channel link.\nExample: https://whatsapp.com/channel/0029VaAbCdEfGhIJkL');
         } else if (error.message.includes('Newsletter not found')) {
-          await extra.reply('❌ Newsletter not found!\n\nThe channel link might be invalid or the newsletter might not exist.');
+          reply('❌ Newsletter not found!\n\nThe channel link might be invalid or the newsletter might not exist.');
         } else if (error.message.includes('newsletterMetadata')) {
-          await extra.reply('❌ Newsletter feature not available!\n\nMake sure you are using Baileys v7.0.0-rc or higher.');
+          reply('❌ Newsletter feature not available!\n\nMake sure you are using Baileys v7.0.0-rc or higher.');
         } else {
-          await extra.reply(`❌ Failed to get newsletter information: ${error.message}`);
+          reply(`❌ Failed to get newsletter information: ${error.message}`);
         }
       }
       
     } catch (error) {
       console.error('Newsletter command error:', error);
-      await extra.reply(`❌ An error occurred: ${error.message}`);
+      reply(`❌ An error occurred: ${error.message}`);
     }
   }
 };
-
