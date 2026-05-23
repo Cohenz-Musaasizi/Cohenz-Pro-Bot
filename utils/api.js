@@ -157,17 +157,57 @@ gemini: async (prompt, chatId = 'default') => {
   }
 },
   
-  // YouTube Download
-  ytDownload: async (url, type = 'audio') => {
-    try {
-      const response = await api.get(`https://api.siputzx.my.id/api/d/ytmp3`, {
-        params: { url }
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error('Failed to download YouTube video');
+  // YouTube Download (with fallback chain - only this function changed)
+ytDownload: async (url, type = 'audio') => {
+  // Try the original API first (your existing one)
+  try {
+    const response = await api.get(`https://api.siputzx.my.id/api/d/ytmp3`, {
+      params: { url }
+    });
+    // If it works, return exactly as you originally did
+    return response.data;
+  } catch (error) {
+    // If it fails, try fallback APIs silently
+  }
+
+  // Fallback 1: Yupra API
+  try {
+    const response = await axios.get(`https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(url)}`);
+    if (response.data?.success && response.data?.data?.download_url) {
+      return {
+        download: response.data.data.download_url,
+        title: response.data.data.title,
+        thumbnail: response.data.data.thumbnail
+      };
     }
-  },
+  } catch (e) {}
+
+  // Fallback 2: Okatsu API
+  try {
+    const response = await axios.get(`https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${encodeURIComponent(url)}`);
+    if (response.data?.dl) {
+      return {
+        download: response.data.dl,
+        title: response.data.title,
+        thumbnail: response.data.thumb
+      };
+    }
+  } catch (e) {}
+
+  // Fallback 3: EliteProTech API
+  try {
+    const response = await axios.get(`https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(url)}&format=mp3`);
+    if (response.data?.success && response.data?.downloadURL) {
+      return {
+        download: response.data.downloadURL,
+        title: response.data.title
+      };
+    }
+  } catch (e) {}
+
+  // If all fail, throw the same error you originally had
+  throw new Error('Failed to download YouTube video');
+},
   
   // Instagram Download
   igDownload: async (url) => {
