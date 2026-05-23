@@ -97,64 +97,65 @@ const APIs = {
   },
 
   // 🆕 Gemini – with full memory and slang knowledge
-  gemini: async (prompt, chatId = 'default') => {
-    const apiKey = config.apiKeys.gemini || process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Gemini API key not set');
+gemini: async (prompt, chatId = 'default') => {
+  const apiKey = config.apiKeys.gemini || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Gemini API key not set');
 
-    preloadSlangKnowledge(chatId);
+  preloadSlangKnowledge(chatId);
 
-    if (!chatHistory.has(chatId)) chatHistory.set(chatId, []);
-    const history = chatHistory.get(chatId);
+  if (!chatHistory.has(chatId)) chatHistory.set(chatId, []);
+  const history = chatHistory.get(chatId);
 
-    const system = {
-      role: "user",
-      parts: [{ text: "You are a helpful WhatsApp bot. Interpret slang, abbreviations, and informal language naturally. If you encounter an unfamiliar abbreviation, try to guess its meaning from context. Always be friendly and conversational." }]
-    };
+  const system = {
+    role: "user",
+    parts: [{ text: "You are a helpful WhatsApp bot. Interpret slang, abbreviations, and informal language naturally. If you encounter an unfamiliar abbreviation, try to guess its meaning from context. Always be friendly and conversational." }]
+  };
 
-    const contents = [
-      system,
-      ...history,
-      { role: "user", parts: [{ text: prompt }] }
-    ];
+  const contents = [
+    system,
+    ...history,
+    { role: "user", parts: [{ text: prompt }] }
+  ];
 
-    const model = 'models/gemini-2.0-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+  // ✅ CHANGED TO GEMINI-3.1-FLASH-LITE (per Google's email)
+  const model = 'models/gemini-3.1-flash-lite';
+  const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
 
-    try {
-      const response = await axios.post(url, {
-        contents: contents,
-        generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 2048,
-          topP: 0.95,
-          topK: 40,
-        },
-      });
+  try {
+    const response = await axios.post(url, {
+      contents: contents,
+      generationConfig: {
+        temperature: 0.9,
+        maxOutputTokens: 2048,
+        topP: 0.95,
+        topK: 40,
+      },
+    });
 
-      const replyText = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!replyText) throw new Error('No response from Gemini');
+    const replyText = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!replyText) throw new Error('No response from Gemini');
 
-      // Add exchange to history
-      history.push(
-        { role: "user", parts: [{ text: prompt }] },
-        { role: "model", parts: [{ text: replyText }] }
-      );
+    // Add exchange to history
+    history.push(
+      { role: "user", parts: [{ text: prompt }] },
+      { role: "model", parts: [{ text: replyText }] }
+    );
 
-      // Trim history to keep memory usage in check
-      while (history.length > MAX_HISTORY * 2) {
-        history.shift();
-      }
-
-      // ✅ Save to disk immediately so memory survives restarts
-      saveChatHistory(chatHistory);
-
-      return replyText;
-
-    } catch (error) {
-      console.error('Gemini API raw error:', error.response?.data || error.message);
-      throw new Error('Failed to get response from Gemini');
+    // Trim history to keep memory usage in check
+    while (history.length > MAX_HISTORY * 2) {
+      history.shift();
     }
-  },
+
+    // ✅ Save to disk immediately so memory survives restarts
+    saveChatHistory(chatHistory);
+
+    return replyText;
+
+  } catch (error) {
+    console.error('Gemini API raw error:', error.response?.data || error.message);
+    throw new Error('Failed to get response from Gemini');
+  }
+},
   
   // YouTube Download
   ytDownload: async (url, type = 'audio') => {
