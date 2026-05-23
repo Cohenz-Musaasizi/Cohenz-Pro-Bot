@@ -4,12 +4,13 @@
 
 const config = require('./config');
 const database = require('./database');
-const { loadCommands } = require('./utils/commandLoader');
+const { loadCommands } = require('./utils/commandloader'); // ✅ Fixed: lowercase L
 const { addMessage } = require('./utils/groupstats');
 const { jidDecode, jidEncode } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const APIs = require('./utils/api'); // ✅ Added: for chatbot auto-reply
 
 // Group metadata cache to prevent rate limiting
 const groupMetadataCache = new Map();
@@ -805,6 +806,33 @@ if (groupSettings.antibadword) {
       // Silently ignore if tictactoe command doesn't exist or has errors
     }
     
+    // ── CHATBOT AUTO-REPLY (GROUPS) ──
+    if (isGroup) {
+      const groupSettings = database.getGroupSettings(from);
+      if (groupSettings.chatbot && body.length > 2 && !body.startsWith(config.prefix)) {
+        try {
+          const response = await APIs.gemini(body);
+          await sock.sendMessage(from, { text: response }, { quoted: msg });
+          return;
+        } catch (err) {
+          console.error('Chatbot group error:', err);
+        }
+      }
+    } else {
+      // ── CHATBOT AUTO-REPLY (PRIVATE CHAT) ──
+      const privateSettingsPath = path.join(__dirname, 'private_chatbot.json');
+      let privateSettings = {};
+      try { privateSettings = JSON.parse(fs.readFileSync(privateSettingsPath, 'utf8')); } catch {}
+      if (privateSettings[from] && body.length > 2 && !body.startsWith(config.prefix)) {
+        try {
+          const response = await APIs.gemini(body);
+          await sock.sendMessage(from, { text: response }, { quoted: msg });
+          return;
+        } catch (err) {
+          console.error('Chatbot private error:', err);
+        }
+      }
+    }
     
     // Check if message starts with prefix
     if (!body.startsWith(config.prefix)) return;
