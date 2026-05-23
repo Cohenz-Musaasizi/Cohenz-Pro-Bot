@@ -1,11 +1,9 @@
-here/**
+/**
  * Menu Command - Display all available commands
  */
 
 const config = require('../../config');
-const { loadCommands } = require('../../utils/commandloader'); // Kept your capital L
-const fs = require('fs');
-const path = require('path');
+const { loadCommands } = require('../../utils/commandLoader');
 
 module.exports = {
   name: 'menu',
@@ -19,17 +17,16 @@ module.exports = {
       const commands = loadCommands();
       const categories = {};
       
-      // 1️⃣ Group ALL commands by category, with a fallback
+      // Group commands by category
       commands.forEach((cmd, name) => {
-        if (cmd.name === name) { // Only main commands, not aliases
-          const category = cmd.category || 'other'; // Fallback to 'other'
-          if (!categories[category]) {
-            categories[category] = [];
+        if (cmd.name === name) { // Only count main command names, not aliases
+          if (!categories[cmd.category]) {
+            categories[cmd.category] = [];
           }
-          categories[category].push(cmd);
+          categories[cmd.category].push(cmd);
         }
       });
-
+      
       const ownerNames = Array.isArray(config.ownerName) ? config.ownerName : [config.ownerName];
       const displayOwner = ownerNames[0] || config.ownerName || 'Bot Owner';
       
@@ -38,19 +35,112 @@ module.exports = {
       menuText += `⚡ Prefix: ${config.prefix}\n`;
       menuText += `📦 Total Commands: ${commands.size}\n`;
       menuText += `👑 Owner: ${displayOwner}\n\n`;
-
-      // 2️⃣ Loop through ALL categories dynamically (no more hardcoded if blocks)
-      const categoryKeys = Object.keys(categories).sort();
       
-      for (const cat of categoryKeys) {
-        const cmds = categories[cat];
-        const catName = cat.charAt(0).toUpperCase() + cat.slice(1);
-        
+      // General Commands
+      if (categories.general) {
         menuText += `┏━━━━━━━━━━━━━━━━━\n`;
-        menuText += `┃ 🔹 ${catName} COMMAND (${cmds.length})\n`;
+        menuText += `┃ 🧭 GENERAL COMMAND\n`;
         menuText += `┗━━━━━━━━━━━━━━━━━\n`;
-        
-        cmds.forEach(cmd => {
+        categories.general.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+      
+      // AI Commands
+      if (categories.ai) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 🤖 AI COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.ai.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+      
+      // Group Commands
+      if (categories.group) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 🔵 GROUP COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.group.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+      
+      // Admin Commands
+      if (categories.admin) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 🛡️ ADMIN COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.admin.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+      
+      // Owner Commands
+      if (categories.owner) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 👑 OWNER COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.owner.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+      
+      // Media Commands
+      if (categories.media) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 🎞️ MEDIA COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.media.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+      
+      // Fun Commands
+      if (categories.fun) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 🎭 FUN COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.fun.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+      
+      // Utility Commands
+      if (categories.utility) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 🔧 UTILITY COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.utility.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+
+       // Anime Commands
+       if (categories.anime) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 👾 ANIME COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.anime.forEach(cmd => {
+          menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `\n`;
+      }
+
+       // Textmaker Commands
+       if (categories.utility) {
+        menuText += `┏━━━━━━━━━━━━━━━━━\n`;
+        menuText += `┃ 🖋️ TEXTMAKER COMMAND\n`;
+        menuText += `┗━━━━━━━━━━━━━━━━━\n`;
+        categories.textmaker.forEach(cmd => {
           menuText += `│ ➜ ${config.prefix}${cmd.name}\n`;
         });
         menuText += `\n`;
@@ -60,10 +150,13 @@ module.exports = {
       menuText += `💡 Type ${config.prefix}help <command> for more info\n`;
       menuText += `🌟 Bot Version: 1.0.0\n`;
       
-      // 3️⃣ Send menu with image
+      // Send menu with image
+      const fs = require('fs');
+      const path = require('path');
       const imagePath = path.join(__dirname, '../../utils/bot_image.jpg');
       
       if (fs.existsSync(imagePath)) {
+        // Send image with newsletter forwarding context
         const imageBuffer = fs.readFileSync(imagePath);
         await sock.sendMessage(extra.from, {
           image: imageBuffer,
