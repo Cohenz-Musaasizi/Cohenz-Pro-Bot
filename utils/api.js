@@ -83,7 +83,7 @@ const APIs = {
       { role: "user", parts: [{ text: prompt }] }
     ];
 
-    const model = 'models/gemini-2.0-flash';   // high free quota
+    const model = 'models/gemini-3.1-flash-lite'; // high free quota
     const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
 
     try {
