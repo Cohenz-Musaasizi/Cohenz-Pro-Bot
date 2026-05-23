@@ -1,20 +1,25 @@
-hereprocess.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
+/**
+ * WhatsApp MD Bot - Main Entry Point
+ * Express server added to prevent Hugging Face from pausing.
+ */
+process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
+// ── Express keep‑alive server (Hugging Face) ──────────
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 7860;
 app.get('/', (req, res) => res.send('Bot is running…'));
 app.get('/health', (req, res) => res.send('OK'));
 app.listen(PORT, () => console.log(`🌐 Keep‑alive server on port ${PORT}`));
+// ──────────────────────────────────────────────────────
 
 const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
 initializeTempSystem();
 startCleanup();
 
-// Console suppression (unchanged)
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
@@ -244,10 +249,6 @@ async function startBot() {
   };
 
   sock.ev.on('messages.upsert', ({ messages, type }) => {
-    // 🟢 DEBUG: Log to confirm messages are being received
-    console.log(`🔹 Received ${messages.length} messages (type: ${type})`);
-    // ──────────────────────────────────────────────
-
     if (type !== 'notify') return;
 
     for (const msg of messages) {
