@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../../config');
-const { loadCommands } = require('../../utils/commandLoader');
+const { loadCommands } = require('../../utils/commandloader');
 const { sendButtons } = require('gifted-btns');
 
 module.exports = {
