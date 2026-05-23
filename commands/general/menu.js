@@ -4,6 +4,8 @@
 
 const config = require('../../config');
 const { loadCommands } = require('../../utils/commandLoader');
+const path = require('path');      // <--- MISSING IMPORT ADDED HERE
+const fs = require('fs');          // <--- MISSING IMPORT ADDED HERE
 
 module.exports = {
   name: 'menu',
