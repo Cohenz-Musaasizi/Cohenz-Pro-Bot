@@ -56,7 +56,7 @@ module.exports = {
     apiKeys: {
       openai: '',
       deepai: '',
-      gemini: 'AIzaSyC6q9C5I2cEaXBpIh8A7BQWk8OiY_ToHlA',   // <-- your Gemini key
+      gemini: process.env.GEMINI_API_KEY || '',   // <-- your Gemini key
       remove_bg: ''
     },
 
