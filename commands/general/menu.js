@@ -3,7 +3,7 @@
  */
 
 const config = require('../../config');
-const { loadCommands } = require('../../utils/commandLoader');
+const { loadCommands } = require('../../utils/commandloader');
 
 module.exports = {
   name: 'menu',
