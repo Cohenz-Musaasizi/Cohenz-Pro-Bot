@@ -1,11 +1,11 @@
-/**
+here/**
  * Menu Command - Display all available commands
  */
 
 const config = require('../../config');
-const { loadCommands } = require('../../utils/commandLoader');
-const path = require('path');      // <--- MISSING IMPORT ADDED HERE
-const fs = require('fs');          // <--- MISSING IMPORT ADDED HERE
+const { loadCommands } = require('../../utils/commandloader');
+const path = require('path');   // ← Fix: path is not defined
+const fs = require('fs');       // ← Fix: fs is not defined
 
 module.exports = {
   name: 'menu',
@@ -127,8 +127,8 @@ module.exports = {
         menuText += `\n`;
       }
 
-       // Anime Commands
-       if (categories.anime) {
+      // Anime Commands
+      if (categories.anime) {
         menuText += `┏━━━━━━━━━━━━━━━━━\n`;
         menuText += `┃ 👾 ANIME COMMAND\n`;
         menuText += `┗━━━━━━━━━━━━━━━━━\n`;
@@ -138,8 +138,8 @@ module.exports = {
         menuText += `\n`;
       }
 
-       // Textmaker Commands
-       if (categories.textmaker) {
+      // Textmaker Commands
+      if (categories.textmaker) {
         menuText += `┏━━━━━━━━━━━━━━━━━\n`;
         menuText += `┃ 🖋️ TEXTMAKER COMMAND\n`;
         menuText += `┗━━━━━━━━━━━━━━━━━\n`;
@@ -157,7 +157,6 @@ module.exports = {
       const imagePath = path.join(__dirname, '../../utils/bot_image.jpg');
       
       if (fs.existsSync(imagePath)) {
-        // Send image with newsletter forwarding context
         const imageBuffer = fs.readFileSync(imagePath);
         await sock.sendMessage(from, {
           image: imageBuffer,
